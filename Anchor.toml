@@ -1,0 +1,25 @@
+[toolchain]
+package_manager = "yarn"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+domin8_1V1_prg = "CSj9CvC2ZZscGJDHJu8fCxxkTiJifWPZWiQCugxJkAad"
+domin8_prgm = "92LhoG1EGxWpRovjrjJ2vA8amNTHFZSTFr1EHUYWjkky"
+
+[registry]
+url = "https://devnet.helius-rpc.com/?api-key=0df32d0b-da4f-49b3-b154-deaceac254c0"
+
+[provider]
+cluster = "devnet"
+wallet = "~/work/domin8/solana/7H9uSFKd1h4pvFPFfqzLpSZyLac7F9ax9ZcFtv9B5oDf.json"
+
+[scripts]
+rotate-force = "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/rotate-force.ts"
+set-counter = "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/set-counter.ts"
+test = "NODE_OPTIONS='--loader ts-node/esm' yarn mocha -t 1000000 tests/devnet.test.ts"
+test-comprehensive = "NODE_OPTIONS='--loader ts-node/esm' yarn mocha -t 1000000 tests/comprehensive.test.ts"
+test-local = "NODE_OPTIONS='--loader ts-node/esm' yarn mocha -t 1000000 tests/localnet.test.ts"
+unlock-bets = "NODE_OPTIONS='--loader ts-node/esm' ts-node scripts/unlock-bets.ts"

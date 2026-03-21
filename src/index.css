@@ -1,0 +1,365 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Safe area for PWA status bar */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+html {
+  /* Fullscreen support */
+  height: 100%;
+  height: -webkit-fill-available;
+  overflow: hidden;
+}
+
+body {
+  /* Use all available height, respecting safe areas */
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
+  box-sizing: border-box;
+}
+
+@theme {
+  --color-light: #ffffff;
+  --color-dark: #171717;
+}
+
+body {
+  color: var(--color-dark);
+  font-family: "Jersey 10", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 1.25rem;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.141 0.005 285.823);
+  --primary: oklch(0.21 0.006 285.885);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);
+  --accent: oklch(0.967 0.001 286.375);
+  --accent-foreground: oklch(0.21 0.006 285.885);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.21 0.006 285.885);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    cursor: url("/assets/cursor/Arrow2.png"), auto;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -20px;
+    background-image: url("/bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: url(#vertical-blur) brightness(0.7);
+    z-index: -1;
+  }
+
+  /* Not allowed cursor for disabled elements - MUST come before pointer rules */
+  button:disabled,
+  button:disabled *,
+  input:disabled,
+  select:disabled,
+  [disabled],
+  [disabled] *,
+  .cursor-not-allowed,
+  .cursor-not-allowed * {
+    cursor: url("/assets/cursor/Not_Allowed_Thick.png"), not-allowed !important;
+  }
+
+  /* Pointer cursor for clickable elements - excludes disabled elements */
+  button:not(:disabled),
+  button:not(:disabled) *,
+  a,
+  a *,
+  [role="button"]:not([disabled]),
+  [role="button"]:not([disabled]) *,
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  select:not(:disabled),
+  .cursor-pointer,
+  .cursor-pointer * {
+    cursor: url("/assets/cursor/Hand3.png"), pointer !important;
+  }
+}
+
+/* Custom scrollbar styles for the participant list */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(251, 191, 36, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(251, 191, 36, 0.4);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 191, 36, 0.6);
+}
+
+/* Domin8 Toast Notifications - Metal Slug Style */
+.domin8-toast {
+  font-family: "metal-slug", "Press Start 2P", monospace, Arial, sans-serif !important;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Success Toast - Green/Golden theme */
+[data-sonner-toast][data-type="success"] {
+  background: linear-gradient(135deg, #1a4d1a 0%, #2c1810 100%) !important;
+  border: 3px solid #58ef50 !important;
+  color: #ffd700 !important;
+  box-shadow:
+    0 0 20px rgba(88, 239, 80, 0.4),
+    inset 0 0 10px rgba(88, 239, 80, 0.1) !important;
+}
+
+[data-sonner-toast][data-type="success"] [data-icon] {
+  color: #58ef50 !important;
+}
+
+[data-sonner-toast][data-type="success"] [data-description] {
+  color: #ffffff !important;
+  font-size: 12px !important;
+  font-family: "metal-slug", monospace, Arial, sans-serif !important;
+}
+
+/* Error Toast - Red/Orange theme */
+[data-sonner-toast][data-type="error"] {
+  background: linear-gradient(135deg, #4d1a1a 0%, #2c1810 100%) !important;
+  border: 3px solid #ff6b6b !important;
+  color: #ffa500 !important;
+  box-shadow:
+    0 0 20px rgba(255, 107, 107, 0.4),
+    inset 0 0 10px rgba(255, 107, 107, 0.1) !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-icon] {
+  color: #ff6b6b !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-description] {
+  color: #ffffff !important;
+  font-size: 12px !important;
+  font-family: "metal-slug", monospace, Arial, sans-serif !important;
+}
+
+/* Info Toast - Blue/Orange theme */
+[data-sonner-toast][data-type="info"] {
+  background: linear-gradient(135deg, #1a3d4d 0%, #2c1810 100%) !important;
+  border: 3px solid #5eb3ef !important;
+  color: #ffd700 !important;
+  box-shadow:
+    0 0 20px rgba(94, 179, 239, 0.4),
+    inset 0 0 10px rgba(94, 179, 239, 0.1) !important;
+}
+
+/* Warning Toast - Orange theme */
+[data-sonner-toast][data-type="warning"] {
+  background: linear-gradient(135deg, #4d3d1a 0%, #2c1810 100%) !important;
+  border: 3px solid #ffa500 !important;
+  color: #ffd700 !important;
+  box-shadow:
+    0 0 20px rgba(255, 165, 0, 0.4),
+    inset 0 0 10px rgba(255, 165, 0, 0.1) !important;
+}
+
+/* Toast close button styling - top right corner */
+[data-sonner-toast] [data-close-button] {
+  position: absolute !important;
+  top: 12px !important;
+  right: -4px !important;
+  left: unset !important;
+  bottom: unset !important;
+  width: 24px !important;
+  height: 24px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: color 0.15s ease !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  color: #fff !important;
+  cursor: url("/assets/cursor/Hand3.png"), pointer !important;
+}
+
+[data-sonner-toast] [data-close-button] svg {
+  width: 16px !important;
+  height: 16px !important;
+  stroke-width: 2.5px !important;
+}
+
+/* Add padding to toast content to avoid close button overlap */
+[data-sonner-toast] [data-content] {
+  padding-right: 20px !important;
+}
+
+/* Pixel-perfect animation for toasts */
+[data-sonner-toast] {
+  animation: pixelSlideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pixelSlideInRight {
+  from {
+    transform: translateX(100%) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* macOS-style volume slider */
+input[type="range"].slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: url("/assets/cursor/Hand3.png"), pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+input[type="range"].slider-thumb::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+
+input[type="range"].slider-thumb::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: url("/assets/cursor/Hand3.png"), pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  border: none;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"].slider-thumb::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+input[type="range"].slider-thumb::-moz-range-thumb:active {
+  transform: scale(0.95);
+}

@@ -1,0 +1,154 @@
+(node:10812) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10812) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+yarn run v1.22.22
+$ /Users/peko/work/domin8/node_modules/.bin/mocha -t 1000000 tests/comprehensive.test.ts
+(node:10819) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10819) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+
+  domin8_prgm - Comprehensive Tests
+
+╔════════════════════════════════════════════╗
+║   DOMIN8 COMPREHENSIVE TEST SUITE          ║
+╚════════════════════════════════════════════╝
+
+Program ID: 93swWR5KYURGFWhDbgat9HxRdJAS5pQKssPffnj9bfXK
+Authority: 7H9uSFKd1h4pvFPFfqzLpSZyLac7F9ax9ZcFtv9B5oDf
+
+=== Global PDAs ===
+Config: EsDMbUmtaPjUuwvpSbAMLgFvpRyzd97N7n9ADdio4Dhm
+Counter: CvLCUttEAubgvYUQTY2ko6z3Fnq5bSvYcRcnt3UXEQzw
+Vault: Hkf7YWy1anRx1vTRjFCKfBsc68pq9BUW929by18UaZrB
+
+=== Airdropping SOL ===
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 1000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 2000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 4000ms delay...
+⚠️ Airdrop failed (wallets may already be funded)
+    Phase 1: System Initialization
+
+=== Initializing System ===
+✓ Initialize TX: D5xxErmZPVi1adgoziNr9rA3TV9mhMxzVAZuvE78f9M4uYnojdHUEKBvN1eGCzLtJRHSKQrckAVN8jAr6i5r9oy
+
+=== System Config ===
+Authority: 7H9uSFKd1h4pvFPFfqzLpSZyLac7F9ax9ZcFtv9B5oDf
+Treasury: 8h8c1PSFYQvoXHFfvE5BK1ui6SXp4YkKS5z6NtqYjzCa
+House Fee: 500 bps (5%)
+Min Bet: 0.01 SOL
+Max Bet: 3 SOL
+Bets Locked: false
+Current Round: 0
+✓ System initialized correctly
+      ✔ Should initialize game config (idempotent) (1184ms)
+    Phase 2: Game Creation
+
+=== Creating Game (First Bet) ===
+Current Round ID: 0
+      1) Should create game with first bet
+
+=== Testing Min Bet Validation ===
+      2) Should reject bets below minimum
+
+=== Testing Max Bet Validation ===
+      3) Should reject bets above maximum (3 SOL)
+    Phase 3: Additional Bets
+
+=== Player2 Places Bet ===
+      4) Should allow player2 to place bet
+    Phase 4: Close Betting Window
+
+=== Closing Betting Window ===
+      5) Should close betting window with unique player detection
+    Phase 5: Winner Selection & Payout
+
+=== Selecting Winner ===
+      6) Should select winner and handle payouts gracefully
+    Test Summary
+
+╔════════════════════════════════════════════╗
+║     COMPREHENSIVE TEST SUITE COMPLETED     ║
+╚════════════════════════════════════════════╝
+
+✓ Phase 1: System Initialization
+✓ Phase 2: Game Creation (first bet)
+✓ Phase 3: Additional Bets
+✓ Phase 4: Close Betting Window
+✓ Phase 5: Winner Selection & Payout
+
+⚠️ Phases 6-7 (Manual Claims, Cleanup) require specific scenarios
+
+🎉 All core game flow tests passed!
+
+      ✔ Should display test results
+
+
+  2 passing (13s)
+  6 failing
+
+  1) domin8_prgm - Comprehensive Tests
+       Phase 2: Game Creation
+         Should create game with first bet:
+     Simulation failed.
+Message: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x1.
+Logs:
+[
+  "Program 93swWR5KYURGFWhDbgat9HxRdJAS5pQKssPffnj9bfXK invoke [1]",
+  "Program log: Instruction: CreateGame",
+  "Program 11111111111111111111111111111111 invoke [2]",
+  "Transfer: insufficient lamports 0, need 5581920",
+  "Program 11111111111111111111111111111111 failed: custom program error: 0x1",
+  "Program 93swWR5KYURGFWhDbgat9HxRdJAS5pQKssPffnj9bfXK consumed 9076 of 200000 compute units",
+  "Program 93swWR5KYURGFWhDbgat9HxRdJAS5pQKssPffnj9bfXK failed: custom program error: 0x1"
+].
+Catch the `SendTransactionError` and call `getLogs()` on it for full details.
+
+
+  2) domin8_prgm - Comprehensive Tests
+       Phase 2: Game Creation
+         Should reject bets below minimum:
+     AssertionError: expected 'Simulation failed. \nMessage: Transac…' to include 'BetTooSmall'
+      at Context.<anonymous> (tests/comprehensive.test.ts:289:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  3) domin8_prgm - Comprehensive Tests
+       Phase 2: Game Creation
+         Should reject bets above maximum (3 SOL):
+     AssertionError: expected 'Simulation failed. \nMessage: Transac…' to include 'BetTooLarge'
+      at Context.<anonymous> (tests/comprehensive.test.ts:331:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+
+  4) domin8_prgm - Comprehensive Tests
+       Phase 3: Additional Bets
+         Should allow player2 to place bet:
+     Error: Account does not exist or has no data 7cWKc2n97NTyupj9A3YLS89FeZmwSRYZ2cYhsnoi7DRA
+      at AccountClient.fetch (node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js:110:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (tests/comprehensive.test.ts:344:29)
+
+  5) domin8_prgm - Comprehensive Tests
+       Phase 4: Close Betting Window
+         Should close betting window with unique player detection:
+     Error: Account does not exist or has no data 7cWKc2n97NTyupj9A3YLS89FeZmwSRYZ2cYhsnoi7DRA
+      at AccountClient.fetch (node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js:110:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (tests/comprehensive.test.ts:391:27)
+
+  6) domin8_prgm - Comprehensive Tests
+       Phase 5: Winner Selection & Payout
+         Should select winner and handle payouts gracefully:
+     Error: Account does not exist or has no data 7cWKc2n97NTyupj9A3YLS89FeZmwSRYZ2cYhsnoi7DRA
+      at AccountClient.fetch (node_modules/@coral-xyz/anchor/dist/cjs/program/namespace/account.js:110:19)
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async Context.<anonymous> (tests/comprehensive.test.ts:459:25)
+
+
+
+error Command failed with exit code 6.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.

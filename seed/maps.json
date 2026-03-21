@@ -1,0 +1,32 @@
+[
+  {
+    "description": "A purple-hued medieval fortress bathed in the warm glow of sunset with flickering lanterns illuminating stone corridors.",
+    "id": 1,
+    "isActive": true,
+    "name": "The Twilight Dungeon",
+    "spawnConfiguration": {
+      "centerX": 198,
+      "centerY": 105,
+      "maxSpawnRadius": 55,
+      "minSpacing": 25,
+      "minSpawnRadius": 15,
+      "radiusX": 138,
+      "radiusY": 45
+    }
+  },
+  {
+    "description": "A dark, skull-adorned dungeon with blazing orange flames and a menacing dragon lurking in the shadows.",
+    "id": 2,
+    "isActive": true,
+    "name": "The Cavern of the Damned",
+    "spawnConfiguration": {
+      "centerX": 198,
+      "centerY": 110,
+      "maxSpawnRadius": 35,
+      "minSpacing": 25,
+      "minSpawnRadius": 20,
+      "radiusX": 113,
+      "radiusY": 43
+    }
+  }
+]

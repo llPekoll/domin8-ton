@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+.convex
+convex/_generated
+*.min.js
+*.min.css
+coverage
+.env
+.env.*
+package-lock.json
+bun.lockb
+pnpm-lock.yaml
+yarn.lock

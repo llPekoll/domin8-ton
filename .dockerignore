@@ -1,0 +1,15 @@
+node_modules
+server/node_modules
+.git
+.anchor
+test-ledger
+android
+ios
+*.apk
+*.aab
+convex-backup
+target/debug
+target/deploy
+target/release
+target/sbpf-solana-solana
+target/rust-analyzer

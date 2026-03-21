@@ -1,0 +1,73 @@
+@import url(https://fonts.googleapis.com/css?family=Raleway:300);
+
+:root {
+  --shine-degree: 120deg;
+  --shine-color: rgba(255, 255, 255, 0.2);
+  --shine-effect: linear-gradient(
+    var(--shine-degree),
+    transparent,
+    var(--shine-color),
+    transparent
+  );
+  --shine-transition: all 0.65s ease-in-out;
+}
+
+.shineButton {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.shineButton::before,
+.shineButton::after {
+  content: "";
+  cursor: pointer;
+  display: block;
+  position: absolute;
+  height: 100%;
+  top: 0;
+}
+
+.shineButton::before {
+  background: rgba(255, 255, 255, 0.8);
+  width: 80px;
+  left: 0;
+  filter: blur(20px);
+  animation: shineAlt1 2.5s ease-in-out infinite;
+}
+
+.shineButton::after {
+  background: rgba(255, 255, 255, 0.6);
+  width: 40px;
+  left: 40px;
+  filter: blur(2px);
+  animation: shineAlt2 2.5s ease-in-out infinite;
+}
+
+@keyframes shineAlt1 {
+  0% {
+    opacity: 0.8;
+    transform: translateX(-120px) skewX(-15deg);
+    transition-property: opacity, transform;
+  }
+  25%,
+  100% {
+    opacity: 1;
+    transform: translateX(350px) skewX(-15deg);
+    transition-property: opacity, transform;
+  }
+}
+
+@keyframes shineAlt2 {
+  0% {
+    opacity: 0.3;
+    transform: translateX(-120px) skewX(-15deg);
+    transition-property: opacity, transform;
+  }
+  25%,
+  100% {
+    opacity: 1;
+    transform: translateX(350px) skewX(-15deg);
+    transition-property: opacity, transform;
+  }
+}

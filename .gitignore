@@ -1,0 +1,60 @@
+/node_modules
+.github
+app
+gradle
+
+convex/_generated
+test-output.log
+target/.rustc_info.json
+.anchor/*
+solana
+
+Cargo.lock
+/target/debug
+/target/deploy
+/target/release
+/target/sbpf-solana-solana
+/target/.rustc_info.json
+/coverage
+/dist
+/out/
+/target/rust-analyzer/
+/target/flycheck0
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+test-ledger/
+docker-compose.yml
+
+# Privy bot signer keys
+private.pem
+public.pem
+
+# Native folders (generated)
+android/
+ios/
+
+# Bubblewrap/TWA build files
+.gradle/
+app/build/
+*.apk
+*.aab
+*.idsig
+*.keystore
+
+# Convex backup
+convex-backup
+
+# Server
+server/node_modules

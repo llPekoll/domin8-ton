@@ -141,20 +141,37 @@ export class TonLobbyClient {
   /**
    * Get lobby state from on-chain child contract
    */
-  async getLobbyState(lobbyId: number): Promise<{ status: number; playerA: string; playerB: string | null; amount: bigint } | null> {
+  async getLobbyState(lobbyId: number): Promise<{
+    lobbyId: number;
+    status: number;
+    playerA: string;
+    playerB: string | null;
+    amount: bigint;
+    mapId: number;
+    skinA: number;
+    skinB: number;
+    winner: string | null;
+    createdAt: number;
+    address: string;
+  } | null> {
     try {
       const address = await this.getLobbyAddress(lobbyId);
       const addr = Address.parse(address);
       const result = await this.client.runMethod(addr, "state", []);
       const stack = result.stack;
-      stack.readBigNumber(); // lobbyId
+      const lid = Number(stack.readBigNumber()); // lobbyId
       const status = Number(stack.readBigNumber()); // status
       const playerA = stack.readAddress().toString(); // playerA
       const playerB = stack.readAddressOpt()?.toString() ?? null; // playerB
       const amount = stack.readBigNumber(); // amount
-      return { status, playerA, playerB, amount };
+      const mapId = Number(stack.readBigNumber()); // mapId
+      const skinA = Number(stack.readBigNumber()); // skinA
+      const skinB = Number(stack.readBigNumber()); // skinB
+      const winner = stack.readAddressOpt()?.toString() ?? null; // winner
+      const createdAt = Number(stack.readBigNumber()); // createdAt
+      return { lobbyId: lid, status, playerA, playerB, amount, mapId, skinA, skinB, winner, createdAt, address };
     } catch (e) {
-      // Contract may not exist yet
+      // Contract may not exist yet or self-destructed
       return null;
     }
   }

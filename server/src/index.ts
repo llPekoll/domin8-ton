@@ -70,8 +70,17 @@ setEmitterIO(io);
 setupSocketHandlers(io);
 
 // Start listening
-httpServer.listen(config.port, () => {
+httpServer.listen(config.port, async () => {
   console.log(`[Server] Running on port ${config.port} (${config.nodeEnv})`);
+
+  // Sync lobbies from chain on startup
+  try {
+    const { syncLobbiesFromChain } = await import("./socket/handlers.js");
+    const result = await syncLobbiesFromChain();
+    console.log(`[Server] Lobby sync complete: ${result.synced}/${result.total}`);
+  } catch (e) {
+    console.warn("[Server] Lobby sync failed (non-fatal):", e);
+  }
 });
 
 // Bootstrap game loop from DB state

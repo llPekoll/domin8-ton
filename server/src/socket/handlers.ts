@@ -54,6 +54,96 @@ const BOT_PRICES: Record<string, number> = {
   elite: 1_000_000_000,
 };
 
+/**
+ * Sync lobbies from on-chain state to DB.
+ * Scans all on-chain lobbies and creates/updates DB entries for any missing ones.
+ */
+export async function syncLobbiesFromChain(): Promise<{ synced: number; total: number }> {
+  const { getTonLobbyClient } = await import("../lib/ton_1v1.js");
+  const lobbyClient = getTonLobbyClient();
+
+  const chainCount = await lobbyClient.getLobbyCount();
+  if (chainCount === 0) return { synced: 0, total: 0 };
+
+  let synced = 0;
+
+  for (let id = 1; id <= chainCount; id++) {
+    // Check if already in DB
+    const [existing] = await db.select().from(oneVOneLobbies)
+      .where(eq(oneVOneLobbies.lobbyId, id)).limit(1);
+
+    if (existing) {
+      // Update status from chain if lobby is still active (not resolved)
+      if (existing.status < 3) {
+        const chainState = await lobbyClient.getLobbyState(id);
+        if (chainState) {
+          const updates: any = {};
+          if (chainState.status === 2 && existing.status !== 3) {
+            // Settled on-chain but not in DB
+            updates.status = 3;
+            updates.winner = chainState.winner;
+            updates.resolvedAt = Math.floor(Date.now() / 1000);
+          } else if (chainState.status === 1 && existing.status === 0 && chainState.playerB) {
+            // Player B joined on-chain but not in DB
+            updates.status = 1;
+            updates.playerB = chainState.playerB;
+            updates.characterB = chainState.skinB;
+          }
+          if (Object.keys(updates).length > 0) {
+            await db.update(oneVOneLobbies).set(updates)
+              .where(eq(oneVOneLobbies.lobbyId, id));
+            synced++;
+            console.log(`[LobbySync] Updated lobby ${id} from chain:`, updates);
+          }
+        } else {
+          // Contract self-destructed (settled) but DB still open
+          if (existing.status < 3) {
+            await db.update(oneVOneLobbies).set({ status: 3, resolvedAt: Math.floor(Date.now() / 1000) })
+              .where(eq(oneVOneLobbies.lobbyId, id));
+            synced++;
+            console.log(`[LobbySync] Lobby ${id} contract destroyed, marked as resolved`);
+          }
+        }
+      }
+      continue;
+    }
+
+    // Not in DB — read from chain and insert
+    const chainState = await lobbyClient.getLobbyState(id);
+    if (!chainState) continue; // Contract destroyed, skip
+
+    const address = await lobbyClient.getLobbyAddress(id);
+    const shareToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+    let status = 0;
+    if (chainState.status === 1) status = 1;
+    if (chainState.status === 2) status = 3;
+
+    await db.insert(oneVOneLobbies).values({
+      lobbyId: id,
+      lobbyPda: address,
+      shareToken,
+      playerA: chainState.playerA,
+      playerB: chainState.playerB || undefined,
+      amount: Number(chainState.amount),
+      status,
+      characterA: chainState.skinA,
+      characterB: chainState.skinB || undefined,
+      mapId: chainState.mapId || 1,
+      isPrivate: false,
+      createdAt: chainState.createdAt || Math.floor(Date.now() / 1000),
+      winner: chainState.winner || undefined,
+      resolvedAt: chainState.status === 2 ? Math.floor(Date.now() / 1000) : undefined,
+    }).onConflictDoNothing();
+
+    synced++;
+    console.log(`[LobbySync] Imported lobby ${id} from chain (status=${chainState.status}, playerA=${chainState.playerA.slice(0, 12)}...)`);
+  }
+
+  console.log(`[LobbySync] Done: ${synced} synced out of ${chainCount} on-chain lobbies`);
+  return { synced, total: chainCount };
+}
+
 export function setupSocketHandlers(io: Server) {
   io.on("connection", (socket: Socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
@@ -731,6 +821,17 @@ export function setupSocketHandlers(io: Server) {
         const lobbies = await db.select().from(oneVOneLobbies).where(eq(oneVOneLobbies.status, 3)).orderBy(desc(oneVOneLobbies.resolvedAt)).limit(data.limit || 10);
         ack?.({ success: true, data: lobbies });
       } catch (error: any) {
+        ack?.({ success: false, error: error.message });
+      }
+    });
+
+    // SYNC LOBBIES — compare on-chain lobbies with DB, fill gaps
+    socket.on("sync-lobbies", async (_data: any, ack?: (res: any) => void) => {
+      try {
+        const result = await syncLobbiesFromChain();
+        ack?.({ success: true, data: result });
+      } catch (error: any) {
+        console.error("[Socket] sync-lobbies error:", error);
         ack?.({ success: false, error: error.message });
       }
     });

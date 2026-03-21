@@ -19,7 +19,7 @@ export function LicensePage() {
           <section>
             <h2 className="text-xl font-bold text-[#FFD700] mb-3">2. Blockchain Transparency</h2>
             <p>
-              Domin8 operates on the Solana blockchain. All game transactions, bets, and outcomes
+              Domin8 operates on the TON blockchain. All game transactions, bets, and outcomes
               are recorded on-chain and publicly verifiable. Our smart contract address is:
               <code className="block mt-2 p-2 bg-black/30 rounded text-sm break-all">
                 7bHYHZVu7kWRU4xf7DWypCvefWvuDqW1CqVfsuwdGiR7

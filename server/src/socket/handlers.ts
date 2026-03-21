@@ -59,6 +59,91 @@ export function setupSocketHandlers(io: Server) {
     console.log(`[Socket] Client connected: ${socket.id}`);
 
     // ==========================================
+    // INSTANT CHAIN SYNC (no polling!)
+    // ==========================================
+
+    // When frontend places a bet, it notifies us immediately
+    // We sync chain state and broadcast to all clients
+    socket.on("bet-placed", async (data: { gameAddress?: string; walletAddress?: string; amount?: number }) => {
+      console.log(`[Socket] Bet placed notification from ${data.walletAddress}, syncing chain...`);
+      try {
+        // Wait a moment for TON to process the tx
+        await new Promise((r) => setTimeout(r, 3000));
+
+        // Import and sync
+        const { TonGameClient } = await import("../lib/ton.js");
+        const { config } = await import("../config.js");
+
+        const endpoint = config.tonNetwork === "mainnet"
+          ? "https://toncenter.com/api/v2/jsonRPC"
+          : "https://testnet.toncenter.com/api/v2/jsonRPC";
+
+        const tonClient = new TonGameClient(
+          endpoint,
+          config.tonMnemonic,
+          config.tonMasterAddress,
+          config.tonCenterApiKey
+        );
+
+        const activeGame = await tonClient.getActiveGame();
+        if (activeGame) {
+          // Import sync functions
+          const { upsertGameState, syncParticipants, clearOldParticipants, getBossWallet } = await import("../game/gameQueries.js");
+          const { emitGameStateUpdate, emitParticipantsUpdate } = await import("./emitter.js");
+          const { GAME_STATUS } = await import("../lib/types.js");
+
+          // Sync to DB
+          await upsertGameState({
+            roundId: activeGame.gameRound,
+            status: activeGame.status,
+            startTimestamp: activeGame.startDate,
+            endTimestamp: activeGame.endDate,
+            map: activeGame.map,
+            betCount: activeGame.bets?.length || 0,
+            betAmounts: activeGame.bets?.map((b) => b.amount) || [],
+            betSkin: activeGame.bets?.map((b) => b.skin) || [],
+            betPosition: activeGame.bets?.map((b) => b.position) || [],
+            betWalletIndex: activeGame.bets?.map((b) => b.walletIndex) || [],
+            wallets: activeGame.wallets || [],
+            totalPot: activeGame.totalDeposit || 0,
+            winner: activeGame.winner,
+          });
+
+          // Sync participants
+          if (activeGame.bets?.length) {
+            const bossWallet = await getBossWallet();
+            await clearOldParticipants(activeGame.gameRound);
+            await syncParticipants(activeGame.gameRound, activeGame.bets, activeGame.wallets, bossWallet);
+            emitParticipantsUpdate(activeGame.gameRound);
+          }
+
+          // Broadcast to all clients
+          const statusLabel = activeGame.status === GAME_STATUS.WAITING ? "waiting"
+            : activeGame.status === GAME_STATUS.OPEN ? "open"
+            : activeGame.status === GAME_STATUS.CLOSED ? "finished"
+            : "waiting";
+
+          emitGameStateUpdate({
+            roundId: activeGame.gameRound,
+            status: statusLabel,
+            startTimestamp: activeGame.startDate,
+            endTimestamp: activeGame.endDate,
+            mapId: activeGame.map,
+            betCount: activeGame.bets?.length || 0,
+            totalPot: activeGame.totalDeposit,
+            winner: activeGame.winner,
+            bets: activeGame.bets,
+            wallets: activeGame.wallets,
+          });
+
+          console.log(`[Socket] Chain synced: round=${activeGame.gameRound} status=${statusLabel} bets=${activeGame.bets?.length || 0}`);
+        }
+      } catch (err) {
+        console.error("[Socket] bet-placed sync error:", err);
+      }
+    });
+
+    // ==========================================
     // PLAYER HANDLERS
     // ==========================================
 
@@ -369,7 +454,7 @@ export function setupSocketHandlers(io: Server) {
           type: "user",
           timestamp: Date.now(),
         }).returning();
-        emitChatMessage(msg);
+        emitChatMessage({...msg, senderWallet: msg.senderWallet ?? undefined, senderName: msg.senderName ?? undefined, gameType: msg.gameType ?? undefined});
         ack?.({ success: true, data: msg });
       } catch (error: any) {
         ack?.({ success: false, error: error.message });
@@ -399,7 +484,7 @@ export function setupSocketHandlers(io: Server) {
           timestamp: Date.now(),
         }).returning();
 
-        emitChatMessage(msg);
+        emitChatMessage({...msg, senderWallet: msg.senderWallet ?? undefined, senderName: msg.senderName ?? undefined, gameType: msg.gameType ?? undefined});
         ack?.({ success: true, data: msg });
       } catch (error: any) {
         ack?.({ success: false, error: error.message });
@@ -650,34 +735,135 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
-    socket.on("create-lobby", async (data: { lobbyId: number; lobbyPda: string; playerA: string; amount: number; characterA: number; mapId: number; isPrivate?: boolean }, ack?: (res: any) => void) => {
+    // PREPARE LOBBY — generates commitHash + secret, does NOT store anything yet
+    // Returns secret + commitHash to frontend. Frontend sends CreateLobby tx, then calls confirm-lobby.
+    socket.on("prepare-lobby", async (_data: any, ack?: (res: any) => void) => {
       try {
-        const shareToken = Math.random().toString(36).substring(2, 10).toUpperCase();
-        const [lobby] = await db.insert(oneVOneLobbies).values({
-          lobbyId: data.lobbyId,
-          lobbyPda: data.lobbyPda,
-          shareToken,
-          playerA: data.playerA,
-          amount: data.amount,
-          status: 0,
-          characterA: data.characterA,
-          mapId: data.mapId,
-          isPrivate: data.isPrivate || false,
-          createdAt: Math.floor(Date.now() / 1000),
-        }).returning();
-        emitLobbyUpdate(lobby);
-        ack?.({ success: true, data: lobby });
+        const { getTonLobbyClient } = await import("../lib/ton_1v1.js");
+        const lobbyClient = getTonLobbyClient();
+
+        // Just generate the secret and commitHash — no ID prediction needed
+        const { secret, commitHash } = lobbyClient.generateCommitHash();
+
+        console.log(`[Socket] Lobby prepared (commitHash: ${commitHash.slice(0, 12)}...)`);
+        ack?.({ success: true, data: { secret, commitHash } });
       } catch (error: any) {
+        console.error("[Socket] prepare-lobby error:", error);
         ack?.({ success: false, error: error.message });
       }
     });
 
+    // CONFIRM LOBBY — called AFTER TonConnect CreateLobby tx is confirmed
+    // Reads the actual lobbyId + address from chain, stores secret, creates DB entry
+    socket.on("confirm-lobby", async (data: { secret: string; playerA: string; amount: number; characterA: number; mapId: number; isPrivate?: boolean }, ack?: (res: any) => void) => {
+      try {
+        const { getTonLobbyClient } = await import("../lib/ton_1v1.js");
+        const lobbyClient = getTonLobbyClient();
+
+        // Poll chain until lobbyCount increases (max 30s)
+        const countBefore = await lobbyClient.getLobbyCount();
+        let realLobbyId = countBefore;
+        const pollStart = Date.now();
+        while (Date.now() - pollStart < 30000) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const current = await lobbyClient.getLobbyCount();
+          if (current > countBefore) {
+            realLobbyId = current;
+            break;
+          }
+        }
+
+        if (realLobbyId === countBefore) {
+          // Count didn't increase — tx may not have landed yet, use count as-is
+          console.warn(`[Socket] Chain lobbyCount didn't increase after 30s, using ${realLobbyId}`);
+        }
+
+        const realAddress = await lobbyClient.getLobbyAddress(realLobbyId);
+
+        // Store the secret under the real lobby ID
+        await lobbyClient.storeSecretForLobby(realLobbyId, data.secret);
+
+        const shareToken = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const [lobby] = await db.insert(oneVOneLobbies).values({
+          lobbyId: realLobbyId,
+          lobbyPda: realAddress,
+          shareToken,
+          playerA: data.playerA || "",
+          amount: data.amount,
+          status: 0,
+          characterA: data.characterA,
+          mapId: data.mapId || 1,
+          isPrivate: data.isPrivate || false,
+          createdAt: Math.floor(Date.now() / 1000),
+        }).onConflictDoUpdate({
+          target: oneVOneLobbies.lobbyId,
+          set: {
+            lobbyPda: realAddress,
+            playerA: data.playerA || "",
+            amount: data.amount,
+            characterA: data.characterA,
+            status: 0,
+          },
+        }).returning();
+
+        emitLobbyUpdate(lobby);
+        console.log(`[Socket] Lobby ${realLobbyId} confirmed on-chain (address: ${realAddress.slice(0, 16)}...)`);
+        ack?.({ success: true, data: lobby });
+      } catch (error: any) {
+        console.error("[Socket] confirm-lobby error:", error);
+        ack?.({ success: false, error: error.message });
+      }
+    });
+
+    // JOIN LOBBY — update DB status, then auto-settle after a delay
     socket.on("join-lobby", async (data: { lobbyId: number; playerB: string; characterB: number }, ack?: (res: any) => void) => {
       try {
-        await db.update(oneVOneLobbies).set({ playerB: data.playerB, characterB: data.characterB, status: 1 }).where(eq(oneVOneLobbies.lobbyId, data.lobbyId));
+        await db.update(oneVOneLobbies).set({
+          playerB: data.playerB,
+          characterB: data.characterB,
+          status: 1, // joined, waiting for settlement
+        }).where(eq(oneVOneLobbies.lobbyId, data.lobbyId));
+
         const [lobby] = await db.select().from(oneVOneLobbies).where(eq(oneVOneLobbies.lobbyId, data.lobbyId)).limit(1);
         emitLobbyUpdate(lobby);
         ack?.({ success: true, data: lobby });
+
+        // Auto-settle: wait for on-chain JoinLobby tx to confirm, then reveal secret
+        // Retry up to 3 times with increasing delays (15s, 30s, 45s)
+        const settleWithRetry = async (attempt: number) => {
+          try {
+            const { getTonLobbyClient } = await import("../lib/ton_1v1.js");
+            const lobbyClient = getTonLobbyClient();
+
+            // settleLobby verifies on-chain state before revealing
+            const { txSignature, winner } = await lobbyClient.settleLobby(data.lobbyId);
+
+            const winnerAddress = winner === "playerA" ? lobby.playerA : data.playerB;
+            const totalPot = (lobby.amount || 0) * 2;
+            const houseFee = Math.floor(totalPot * 0.05);
+            const prizeAmount = totalPot - houseFee;
+
+            await db.update(oneVOneLobbies).set({
+              status: 3,
+              winner: winnerAddress,
+              resolvedAt: Math.floor(Date.now() / 1000),
+              settleTxHash: txSignature,
+              prizeAmount,
+            }).where(eq(oneVOneLobbies.lobbyId, data.lobbyId));
+
+            const [settled] = await db.select().from(oneVOneLobbies).where(eq(oneVOneLobbies.lobbyId, data.lobbyId)).limit(1);
+            emitLobbyUpdate(settled);
+            console.log(`[Socket] Lobby ${data.lobbyId} settled: winner=${winnerAddress} (${winner}) prize=${prizeAmount} tx=${txSignature}`);
+          } catch (err: any) {
+            console.warn(`[Socket] Settle lobby ${data.lobbyId} attempt ${attempt}/3: ${err.message}`);
+            if (attempt < 3) {
+              setTimeout(() => settleWithRetry(attempt + 1), 15000); // retry in 15s
+            } else {
+              console.error(`[Socket] Lobby ${data.lobbyId} settle failed after 3 attempts. May need manual settlement.`);
+            }
+          }
+        };
+        setTimeout(() => settleWithRetry(1), 15000); // first attempt after 15s
       } catch (error: any) {
         ack?.({ success: false, error: error.message });
       }

@@ -179,7 +179,7 @@ export class UIManager {
     this.vrfContainer.setVisible(false);
 
     // Get winner info from game state
-    const winnerWallet = this.gameState?.winner?.toBase58?.() || this.gameState?.winner;
+    const winnerWallet = typeof this.gameState?.winner === "string" ? this.gameState.winner : this.gameState?.winner?.toString?.() || "";
     const winnerPrizeNum = this.gameState?.winnerPrize
       ? Number(this.gameState.winnerPrize) / 1e9
       : 0;

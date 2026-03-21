@@ -93,8 +93,8 @@ export function LastWinnerCard() {
             </h3>
             <div className="flex items-center gap-2">
               <img
-                src="/sol-logo.svg"
-                alt="SOL"
+                src="/ton-logo.svg"
+                alt="TON"
                 className="w-5 h-5"
                 style={{
                   filter:
@@ -136,8 +136,8 @@ export function LastWinnerCard() {
               <div className="text-white/50 text-lg flex items-center justify-end gap-1 -mt-2">
                 <span>Bet:</span>
                 <img
-                  src="/sol-logo.svg"
-                  alt="SOL"
+                  src="/ton-logo.svg"
+                  alt="TON"
                   className="w-2 h-2"
                   style={{
                     filter:

@@ -2,7 +2,7 @@
  * Game action implementations
  * Replaces gameScheduler.ts from Convex
  */
-import { SolanaClient } from "../lib/solana.js";
+import { TonGameClient } from "../lib/ton.js";
 import { GAME_STATUS, GAME_TIMING } from "../lib/types.js";
 import { config } from "../config.js";
 import {
@@ -18,9 +18,27 @@ import {
 import { notifyGameWinner } from "./notifications.js";
 import { emitGameStateUpdate } from "../socket/emitter.js";
 
-function getSolanaClient(): SolanaClient {
-  return new SolanaClient(config.solanaRpcEndpoint, config.crankAuthorityPrivateKey);
+// Singleton TON client
+let tonClient: TonGameClient | null = null;
+
+function getTonClient(): TonGameClient {
+  if (!tonClient) {
+    const endpoint = config.tonNetwork === "mainnet"
+      ? "https://toncenter.com/api/v2/jsonRPC"
+      : "https://testnet.toncenter.com/api/v2/jsonRPC";
+
+    tonClient = new TonGameClient(
+      endpoint,
+      config.tonMnemonic,
+      config.tonMasterAddress,
+      config.tonCenterApiKey
+    );
+  }
+  return tonClient;
 }
+
+// Alias kept for backward compatibility
+function getClient() { return getTonClient(); }
 
 /**
  * Create a new game round on-chain
@@ -35,8 +53,8 @@ export async function executeCreateGameRound(): Promise<{
   console.log("\n[GameActions] Executing create game round");
 
   try {
-    const solanaClient = getSolanaClient();
-    const gameConfig = await solanaClient.getGameConfig();
+    const client = getClient();
+    const gameConfig = await client.getGameConfig();
 
     if (!gameConfig) {
       console.error("[GameActions] Config not found");
@@ -52,8 +70,8 @@ export async function executeCreateGameRound(): Promise<{
     const mapId = Math.random() < 0.5 ? 1 : 2;
 
     console.log(`[GameActions] Creating round ${nextRoundId} with map ${mapId}...`);
-    const txResult = await solanaClient.createGameRound(nextRoundId, mapId);
-    const confirmed = await solanaClient.confirmTransaction(txResult.signature);
+    const txResult = await client.createGameRound(nextRoundId, mapId);
+    const confirmed = await client.confirmTransaction(txResult.signature);
 
     if (confirmed) {
       console.log(`[GameActions] Game round ${nextRoundId} created: ${txResult.signature}`);
@@ -86,12 +104,12 @@ export async function executeEndGame(roundId: number): Promise<void> {
   console.log(`\n[GameActions] Executing end game for round ${roundId}`);
 
   try {
-    const solanaClient = getSolanaClient();
+    const client = getClient();
 
-    let activeGame = await solanaClient.getActiveGame();
+    let activeGame = await client.getActiveGame();
 
     if (activeGame?.gameRound !== roundId) {
-      activeGame = await solanaClient.getGameRound(roundId);
+      activeGame = await client.getGameRound(roundId);
       if (!activeGame) {
         console.log(`[GameActions] Round ${roundId}: No game found, skipping`);
         return;
@@ -141,8 +159,18 @@ export async function executeEndGame(roundId: number): Promise<void> {
 
     // Call end_game instruction
     console.log(`[GameActions] Round ${roundId}: Calling end_game...`);
-    const txResult = await solanaClient.endGame(roundId);
-    const confirmed = await solanaClient.confirmTransaction(txResult.signature);
+    let txResult;
+    try {
+      txResult = await client.endGame(roundId);
+    } catch (endErr: any) {
+      if (endErr?.message?.includes("No secret stored")) {
+        console.error(`[GameActions] Round ${roundId}: No secret — game cannot be ended. Marking failed.`);
+        await markJobFailed(roundId, "end_game", "NO_SECRET");
+        return;
+      }
+      throw endErr;
+    }
+    const confirmed = await client.confirmTransaction(txResult.signature);
 
     if (confirmed) {
       console.log(`[GameActions] Round ${roundId}: Game ended: ${txResult.signature}`);
@@ -151,7 +179,7 @@ export async function executeEndGame(roundId: number): Promise<void> {
       // Wait for blockchain update
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      const updatedGame = await solanaClient.getGameRound(roundId);
+      const updatedGame = await client.getGameRound(roundId);
       if (updatedGame?.winner) {
         console.log(`[GameActions] Round ${roundId}: Winner: ${updatedGame.winner}`);
 
@@ -242,8 +270,8 @@ export async function executeSendPrize(roundId: number): Promise<void> {
   console.log(`\n[GameActions] Executing send prize for round ${roundId}`);
 
   try {
-    const solanaClient = getSolanaClient();
-    const gameRound = await solanaClient.getGameRound(roundId);
+    const client = getClient();
+    const gameRound = await client.getGameRound(roundId);
 
     if (!gameRound) {
       console.log(`[GameActions] Round ${roundId}: No game found, skipping`);
@@ -292,8 +320,8 @@ export async function executeSendPrize(roundId: number): Promise<void> {
     }
 
     console.log(`[GameActions] Round ${roundId}: Sending prize to ${gameRound.winner}`);
-    const txResult = await solanaClient.sendPrizeWinner(roundId);
-    const confirmed = await solanaClient.confirmTransaction(txResult.signature);
+    const txResult = await client.sendPrizeWinner(roundId);
+    const confirmed = await client.confirmTransaction(txResult.signature);
 
     if (confirmed) {
       console.log(`[GameActions] Round ${roundId}: Prize sent: ${txResult.signature}`);

@@ -197,7 +197,7 @@ export async function getCurrentGameState() {
  * Get last finished game - returns formatted data matching frontend expectations
  */
 export async function getLastFinishedGame() {
-  const LAMPORTS_PER_SOL = 1_000_000_000;
+  const NANO_PER_TON = 1_000_000_000;
   const MIN_DISPLAY_DELAY = 15;
   const now = Math.floor(Date.now() / 1000);
 
@@ -222,7 +222,7 @@ export async function getLastFinishedGame() {
   const winningBetIndex = game.winningBetIndex!;
   const winningBet = game.betSkin?.[winningBetIndex] ?? 1;
   const winningAmount = game.betAmounts?.[winningBetIndex] ?? (game.totalPot! / (game.betCount || 1));
-  const prizeAmount = game.totalPot ? (game.totalPot * 0.95) / LAMPORTS_PER_SOL : 0;
+  const prizeAmount = game.totalPot ? (game.totalPot * 0.95) / NANO_PER_TON : 0;
 
   const [character] = await db.select().from(characters).where(eq(characters.characterId, winningBet)).limit(1);
   const fallbackChar = character || (await db.select().from(characters).where(eq(characters.characterId, 1)).limit(1))[0];
@@ -234,8 +234,8 @@ export async function getLastFinishedGame() {
     characterName: fallbackChar?.name || "orc",
     characterAssetPath: fallbackChar?.assetPath || "/characters/orc.png",
     prizeAmount,
-    betAmount: winningAmount ? winningAmount / LAMPORTS_PER_SOL : 0,
-    totalPot: game.totalPot ? game.totalPot / LAMPORTS_PER_SOL : 0,
+    betAmount: winningAmount ? winningAmount / NANO_PER_TON : 0,
+    totalPot: game.totalPot ? game.totalPot / NANO_PER_TON : 0,
     endTimestamp: game.endTimestamp,
   };
 }

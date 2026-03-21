@@ -1,11 +1,16 @@
 import { useState, useCallback } from "react";
 import { useActiveWallet } from "../../contexts/ActiveWalletContext";
 import { useSocket, socketRequest } from "../../lib/socket";
+import { useTonConnectUI } from "@tonconnect/ui-react";
+import { toNano, beginCell } from "@ton/core";
 import { toast } from "sonner";
 import { logger } from "../../lib/logger";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SpriteAnimator } from "../SpriteAnimator";
 import type { Character } from "../../types/character";
+
+const MASTER_ADDRESS = import.meta.env.VITE_TON_MASTER_ADDRESS || "";
+const OP_CREATE_LOBBY = 0xed0a8e4c;
 
 interface CreateLobbyProps {
   selectedCharacter: Character | null;
@@ -14,7 +19,7 @@ interface CreateLobbyProps {
   onLobbyCreated?: (lobbyId: number) => void;
 }
 
-const DEFAULT_BET_AMOUNT_SOL = 0.01;
+const DEFAULT_BET_AMOUNT = 0.1;
 
 export function CreateLobby({
   selectedCharacter,
@@ -22,19 +27,11 @@ export function CreateLobby({
   onCharacterChange,
   onLobbyCreated,
 }: CreateLobbyProps) {
-  const { connected, activePublicKey: publicKey, activeWallet: wallet } = useActiveWallet();
+  const { connected, activePublicKey: publicKey } = useActiveWallet();
   const { socket } = useSocket();
-  const createLobbyAction = useCallback(
-    async (args: any) => {
-      if (!socket) throw new Error("Not connected");
-      const res = await socketRequest(socket, "create-lobby", args);
-      if (!res.success) throw new Error(res.error);
-      return res.data;
-    },
-    [socket]
-  );
+  const [tonConnectUI] = useTonConnectUI();
 
-  const [betAmount, setBetAmount] = useState<number>(DEFAULT_BET_AMOUNT_SOL);
+  const [betAmount, setBetAmount] = useState<number>(DEFAULT_BET_AMOUNT);
   const [isPrivate, setIsPrivate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,7 +43,7 @@ export function CreateLobby({
   }, []);
 
   const handleCreateLobby = useCallback(async () => {
-    if (!connected || !publicKey || !selectedCharacter || !wallet) {
+    if (!connected || !publicKey || !selectedCharacter || !socket) {
       toast.error("Please connect wallet and select a character");
       return;
     }
@@ -58,109 +55,76 @@ export function CreateLobby({
 
     setIsLoading(true);
     try {
-      // Import utilities
-      const { getSharedConnection } = await import("../../lib/sharedConnection");
-      const { buildCreateLobbyTransaction } = await import("../../lib/solana-1v1-transactions");
-
-      const connection = getSharedConnection();
-      const betAmountLamports = Math.floor(betAmount * 1e9); // Convert SOL to lamports
-
-      // Debug: Log the character being used for lobby creation
-      console.log("[1v1 Debug] CreateLobby - creating with character:", {
-        selectedCharacterId: selectedCharacter.id,
-        selectedCharacterName: selectedCharacter.name,
-        betAmount: betAmountLamports,
-      });
+      const betAmountNanotons = Math.floor(betAmount * 1e9);
 
       logger.ui.info("Starting lobby creation process", {
         playerA: publicKey.toString(),
-        amount: betAmountLamports,
+        amount: betAmountNanotons,
         character: selectedCharacter.id,
       });
 
-      // Build create_lobby transaction
-      const transaction = await buildCreateLobbyTransaction(
-        publicKey,
-        betAmountLamports,
-        selectedCharacter.id,
-        0, // Default map ID
-        connection
-      );
+      // Step 1: Get secret + commitHash from backend (nothing stored yet)
+      const prepareRes = await socketRequest(socket, "prepare-lobby", {});
+      if (!prepareRes.success) throw new Error(prepareRes.error);
+      const { secret, commitHash } = prepareRes.data;
 
-      // Serialize transaction for Privy (must be Uint8Array, not VersionedTransaction object)
-      const serializedTx = transaction.serialize();
+      // Step 2: Send CreateLobby tx to master contract via TonConnect (actual payment)
+      const commitHashBigInt = BigInt(commitHash);
+      const payload = beginCell()
+        .storeUint(OP_CREATE_LOBBY, 32)
+        .storeUint(0, 64) // queryId
+        .storeUint(0, 8)  // mapId
+        .storeUint(selectedCharacter.id, 8) // skin
+        .storeUint(commitHashBigInt, 256) // commitHash
+        .endCell()
+        .toBoc()
+        .toString("base64");
 
-      // Sign and send via Privy
-      const txResult = await wallet.signAndSendTransaction({
-        transaction: serializedTx,
-        chain: "solana:mainnet",
+      // Bet + 0.15 TON gas for deploy+config
+      const totalAmount = toNano((betAmount + 0.15).toFixed(9));
+
+      toast.loading("Confirm in your wallet...", { id: "create-lobby-tx" });
+
+      // This throws if user cancels — lobby won't be recorded
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [
+          {
+            address: MASTER_ADDRESS,
+            amount: totalAmount.toString(),
+            payload,
+          },
+        ],
       });
 
-      // Handle signature - could be string or Uint8Array
-      let signature: string;
-      if (typeof txResult.signature === "string") {
-        signature = txResult.signature;
-      } else if (txResult.signature instanceof Uint8Array) {
-        // Convert Uint8Array to base58
-        const bs58 = await import("bs58");
-        signature = bs58.default.encode(txResult.signature);
-      } else {
-        throw new Error("Invalid signature format from wallet");
-      }
-
-      logger.solana.info("Transaction sent to blockchain", {
-        signature: signature.slice(0, 8) + "...",
-      });
-
-      toast.loading("Waiting for transaction confirmation...", { id: "tx-confirm" });
-
-      const confirmation = await connection.confirmTransaction(signature, "confirmed");
-
-      if (confirmation.value.err) {
-        throw new Error("Transaction failed: " + confirmation.value.err.toString());
-      }
-
-      toast.success("Transaction confirmed!", { id: "tx-confirm" });
-      logger.solana.info("Transaction confirmed on blockchain", { signature });
-
-      // Call Convex action to create lobby in database
-      const result = await createLobbyAction({
-        playerAWallet: publicKey.toString(),
-        amount: betAmountLamports,
+      // Step 3: Tx sent — backend polls chain for confirmation, stores secret, creates DB entry
+      toast.loading("Waiting for blockchain confirmation...", { id: "create-lobby-tx" });
+      const confirmRes = await socketRequest(socket, "confirm-lobby", {
+        secret,
+        playerA: publicKey.toString(),
+        amount: betAmountNanotons,
         characterA: selectedCharacter.id,
         mapId: 0,
-        transactionHash: signature,
         isPrivate,
+      }, 45_000);
+      if (!confirmRes.success) throw new Error(confirmRes.error);
+      const lobbyData = confirmRes.data;
+
+      toast.success(`Lobby #${lobbyData.lobbyId} created! Waiting for Player B...`, {
+        id: "create-lobby-tx",
+        duration: 5000,
       });
 
-      if (result.success) {
-        logger.solana.info("Lobby created successfully", {
-          lobbyId: result.lobbyId,
-          lobbyPda: result.lobbyPda,
-        });
-
-        toast.success(`Lobby #${result.lobbyId} created! Waiting for Player B...`, {
-          duration: 5000,
-        });
-
-        // Callback to parent component
-        onLobbyCreated?.(result.lobbyId);
-      } else {
-        toast.error("Failed to create lobby in database");
-        logger.solana.error("Convex action failed");
-      }
+      onLobbyCreated?.(lobbyData.lobbyId);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.solana.error("Failed to create lobby:", error);
-      // Provide user-friendly error messages with recovery guidance
-      if (errorMsg.includes("User rejected")) {
-        toast.error("Transaction rejected by user");
-      } else if (errorMsg.includes("confirmation timeout")) {
-        toast.error("Transaction confirmation timed out. Please check your wallet.");
-      } else if (errorMsg.includes("Insufficient SOL")) {
-        toast.error(`Insufficient SOL. Need: ~${(betAmount + 0.003).toFixed(4)} SOL (bet + fees)`);
+      logger.ui.error("Failed to create lobby:", error);
+      if (errorMsg.includes("Rejected") || errorMsg.includes("rejected")) {
+        toast.error("Transaction rejected", { id: "create-lobby-tx" });
+      } else if (errorMsg.includes("Insufficient")) {
+        toast.error(`Insufficient TON. Need: ~${(betAmount + 0.15).toFixed(3)} TON`, { id: "create-lobby-tx" });
       } else {
-        toast.error("Failed to create lobby: " + errorMsg);
+        toast.error("Failed to create lobby: " + errorMsg, { id: "create-lobby-tx" });
       }
     } finally {
       setIsLoading(false);
@@ -169,10 +133,10 @@ export function CreateLobby({
     connected,
     publicKey,
     selectedCharacter,
-    wallet,
+    socket,
     betAmount,
     isPrivate,
-    createLobbyAction,
+    tonConnectUI,
     onLobbyCreated,
   ]);
 
@@ -232,15 +196,9 @@ export function CreateLobby({
           {/* Bet Amount Input with Increment Buttons */}
           <div className="flex items-center justify-center md:justify-start gap-2">
             <div className="relative">
-              <img
-                src="/sol-logo.svg"
-                alt="SOL"
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
-                style={{
-                  filter:
-                    "brightness(0) saturate(100%) invert(66%) sepia(89%) saturate(470%) hue-rotate(359deg) brightness(97%) contrast(89%)",
-                }}
-              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400 font-bold text-xs">
+                TON
+              </span>
               <input
                 type="number"
                 value={betAmount}
@@ -248,9 +206,9 @@ export function CreateLobby({
                 min="0.001"
                 max="100"
                 step="0.001"
-                className="w-28 md:w-32 px-3 py-2 pl-9 bg-black/30 border border-amber-700/50 rounded-lg text-amber-100 placeholder-amber-600 text-center font-bold focus:outline-none focus:border-amber-500"
+                className="w-28 md:w-32 px-3 py-2 pl-12 bg-black/30 border border-amber-700/50 rounded-lg text-amber-100 placeholder-amber-600 text-center font-bold focus:outline-none focus:border-amber-500"
                 disabled={isLoading}
-                placeholder="0.001"
+                placeholder="0.1"
               />
             </div>
 

@@ -4,7 +4,7 @@ import { EventBus } from "../../game/EventBus";
 import { logger } from "../../lib/logger";
 import { useAssets } from "../../contexts/AssetsContext";
 import { usePrivyWallet } from "../../hooks/usePrivyWallet";
-import { usePrivy } from "@privy-io/react-auth";
+import { useActiveWallet } from "../../contexts/ActiveWalletContext";
 import { useSocket, socketRequest } from "../../lib/socket";
 import { toast } from "sonner";
 import type { Character } from "../../types/character";
@@ -68,8 +68,9 @@ export function LobbyDetailsDialog({
   onDoubleDown,
 }: LobbyDetailsDialogProps) {
   const { characters, maps } = useAssets();
-  const { connected, publicKey, solBalance } = usePrivyWallet();
-  const { login, ready } = usePrivy();
+  const { connected, solBalance, walletAddress } = usePrivyWallet();
+  const publicKey = walletAddress; // wallet address string
+  const { connect: login, ready } = useActiveWallet();
 
   // Check if user has enough balance to join (amount is in lamports)
   const hasEnoughBalance = lobby ? solBalance >= lobby.amount / 1e9 : false;
@@ -542,7 +543,7 @@ export function LobbyDetailsDialog({
     }
   }, [lobby]);
 
-  // Helper function to format lamports to SOL
+  // Helper function to format lamports to TON
   const formatAmount = (lamports: number) => {
     return (lamports / 1e9).toFixed(3);
   };
@@ -608,7 +609,7 @@ export function LobbyDetailsDialog({
         return {
           title: fightResult?.isUserWinner ? "🎉 VICTORY!" : "💀 DEFEAT",
           subtitle: fightResult?.isUserWinner
-            ? `You won ${formatAmount(prizeAmount)} SOL!${newWinStreak > 1 ? ` 🔥 ${newWinStreak} win streak!` : ""}`
+            ? `You won ${formatAmount(prizeAmount)} TON!${newWinStreak > 1 ? ` 🔥 ${newWinStreak} win streak!` : ""}`
             : "Better luck next time!",
           showSpinner: false,
         };
@@ -671,7 +672,7 @@ export function LobbyDetailsDialog({
                 )}
             </span>
             <span className="text-amber-400 font-mono flex items-center gap-1">
-              <img src="/sol-logo.svg" alt="SOL" className="w-4 h-4" />
+              <img src="/ton-logo.svg" alt="TON" className="w-4 h-4" />
               {formatAmount(lobby.amount)}
             </span>
           </DialogTitle>
@@ -731,9 +732,9 @@ export function LobbyDetailsDialog({
                 {/* Prize display */}
                 <div className="text-center">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                    <img src="/sol-logo.svg" alt="SOL" className="w-6 h-6" />
+                    <img src="/ton-logo.svg" alt="TON" className="w-6 h-6" />
                     <span className="text-2xl font-bold text-amber-300">
-                      +{formatAmount(prizeAmount)} SOL
+                      +{formatAmount(prizeAmount)} TON
                     </span>
                   </div>
                   {newWinStreak > 1 && (
@@ -749,7 +750,7 @@ export function LobbyDetailsDialog({
                     onClick={handleDoubleDownClick}
                     className="w-full py-3 bg-gradient-to-b from-amber-500 to-amber-700 hover:to-amber-800 text-amber-100 font-bold rounded-lg transform hover:scale-105 transition-all shadow-lg"
                   >
-                    🔥 DOUBLE DOWN! (Bet {formatAmount(prizeAmount)} SOL)
+                    🔥 DOUBLE DOWN! (Bet {formatAmount(prizeAmount)} TON)
                   </button>
                 )}
                 <button
@@ -760,7 +761,7 @@ export function LobbyDetailsDialog({
                 </button>
                 {lobby.settleTxHash && (
                   <a
-                    href={`https://solscan.io/tx/${lobby.settleTxHash}${import.meta.env.VITE_SOLANA_NETWORK === "devnet" ? "?cluster=devnet" : ""}`}
+                    href={`https://testnet.tonviewer.com/transaction/${lobby.settleTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-amber-400/60 hover:text-amber-300 underline"
@@ -772,7 +773,7 @@ export function LobbyDetailsDialog({
             ) : (
               <div className="text-center flex flex-col items-center gap-2">
                 <div className="text-red-400 text-sm mb-1">
-                  You lost {formatAmount(lobby.amount)} SOL
+                  You lost {formatAmount(lobby.amount)} TON
                 </div>
                 <button
                   onClick={onClose}
@@ -782,7 +783,7 @@ export function LobbyDetailsDialog({
                 </button>
                 {lobby.settleTxHash && (
                   <a
-                    href={`https://solscan.io/tx/${lobby.settleTxHash}${import.meta.env.VITE_SOLANA_NETWORK === "devnet" ? "?cluster=devnet" : ""}`}
+                    href={`https://testnet.tonviewer.com/transaction/${lobby.settleTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-amber-400/60 hover:text-amber-300 underline"
@@ -817,7 +818,7 @@ export function LobbyDetailsDialog({
               <div className="bg-black/50 px-4 py-2 rounded-lg border border-amber-700/50 text-center flex-1">
                 <p className="text-xs text-amber-400/70">Bet</p>
                 <div className="flex items-center gap-1 justify-center">
-                  <img src="/sol-logo.svg" alt="SOL" className="w-3 h-3" />
+                  <img src="/ton-logo.svg" alt="TON" className="w-3 h-3" />
                   <p className="text-sm font-bold text-amber-300">{formatAmount(lobby.amount)}</p>
                 </div>
               </div>
@@ -886,7 +887,7 @@ export function LobbyDetailsDialog({
 
                     {!hasEnoughBalance && (
                       <p className="text-xs text-red-400 text-center mb-2">
-                        Insufficient balance. You need {formatAmount(lobby.amount)} SOL
+                        Insufficient balance. You need {formatAmount(lobby.amount)} TON
                       </p>
                     )}
                     <button
@@ -898,7 +899,7 @@ export function LobbyDetailsDialog({
                       disabled={!localSelectedCharacter || isJoining || !hasEnoughBalance}
                       className="w-full bg-gradient-to-b from-amber-500 to-amber-700 hover:to-amber-800 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-amber-100 font-bold py-2 px-4 rounded-lg transition-colors shadow-lg"
                     >
-                      {isJoining ? "Joining..." : `Join Battle (${formatAmount(lobby.amount)} SOL)`}
+                      {isJoining ? "Joining..." : `Join Battle (${formatAmount(lobby.amount)} TON)`}
                     </button>
                   </div>
                 )}

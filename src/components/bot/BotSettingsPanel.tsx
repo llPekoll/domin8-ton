@@ -7,8 +7,9 @@ import { useBotSettings, type BotConfiguration } from "../../hooks/useBotSetting
 import { useBotSession } from "../../hooks/useBotSession";
 import { useBotPurchase } from "../../hooks/useBotPurchase";
 import { useAssets } from "../../contexts/AssetsContext";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Character } from "~/types/character";
+
+const NANO_PER_TON = 1_000_000_000;
 
 interface ToggleSwitchProps {
   enabled: boolean;
@@ -135,12 +136,12 @@ export function BotSettingsPanel() {
     setLocalConfig((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Convert lamports to SOL for display
+  // Convert nanotons to TON for display
   const lamportsToSol = (lamports: number | undefined) =>
-    lamports ? (lamports / LAMPORTS_PER_SOL).toString() : "";
+    lamports ? (lamports / NANO_PER_TON).toString() : "";
   const solToLamports = (sol: string) => {
     const num = parseFloat(sol);
-    return isNaN(num) ? 0 : Math.floor(num * LAMPORTS_PER_SOL);
+    return isNaN(num) ? 0 : Math.floor(num * NANO_PER_TON);
   };
 
   return (
@@ -197,15 +198,15 @@ export function BotSettingsPanel() {
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="bg-black/30 rounded-lg p-3 text-center">
             <p className="text-gray-400 text-xs mb-1">Limit</p>
-            <p className="text-amber-300 font-bold">{budgetInfo.limitSOL.toFixed(3)} SOL</p>
+            <p className="text-amber-300 font-bold">{budgetInfo.limitSOL.toFixed(3)} TON</p>
           </div>
           <div className="bg-black/30 rounded-lg p-3 text-center">
             <p className="text-gray-400 text-xs mb-1">Spent</p>
-            <p className="text-red-300 font-bold">{budgetInfo.spentSOL.toFixed(3)} SOL</p>
+            <p className="text-red-300 font-bold">{budgetInfo.spentSOL.toFixed(3)} TON</p>
           </div>
           <div className="bg-black/30 rounded-lg p-3 text-center">
             <p className="text-gray-400 text-xs mb-1">Remaining</p>
-            <p className="text-green-300 font-bold">{budgetInfo.remainingSOL.toFixed(3)} SOL</p>
+            <p className="text-green-300 font-bold">{budgetInfo.remainingSOL.toFixed(3)} TON</p>
           </div>
         </div>
 
@@ -254,7 +255,7 @@ export function BotSettingsPanel() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-indigo-300">Fixed Bet Amount (SOL)</Label>
+            <Label className="text-indigo-300">Fixed Bet Amount (TON)</Label>
             <Input
               type="number"
               value={lamportsToSol(localConfig.fixedBetAmount)}
@@ -292,7 +293,7 @@ export function BotSettingsPanel() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-blue-300">Min Bet (SOL)</Label>
+              <Label className="text-blue-300">Min Bet (TON)</Label>
               <Input
                 type="number"
                 value={lamportsToSol(localConfig.betMin)}
@@ -302,7 +303,7 @@ export function BotSettingsPanel() {
               />
             </div>
             <div>
-              <Label className="text-blue-300">Max Bet (SOL)</Label>
+              <Label className="text-blue-300">Max Bet (TON)</Label>
               <Input
                 type="number"
                 value={lamportsToSol(localConfig.betMax)}
@@ -312,7 +313,7 @@ export function BotSettingsPanel() {
               />
             </div>
             <div>
-              <Label className="text-blue-300">Stop Loss (SOL)</Label>
+              <Label className="text-blue-300">Stop Loss (TON)</Label>
               <Input
                 type="number"
                 value={lamportsToSol(localConfig.stopLoss)}
@@ -360,7 +361,7 @@ export function BotSettingsPanel() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-amber-300">Take Profit (SOL)</Label>
+              <Label className="text-amber-300">Take Profit (TON)</Label>
               <Input
                 type="number"
                 value={lamportsToSol(localConfig.takeProfit)}

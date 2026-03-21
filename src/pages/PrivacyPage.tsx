@@ -12,7 +12,7 @@ export function PrivacyPage() {
             <p>
               Domin8 ("we", "us", or "our") respects your privacy. This policy explains how we
               collect, use, and protect your information when you use our battle royale betting
-              game on Solana.
+              game on TON.
             </p>
           </section>
 
@@ -23,7 +23,7 @@ export function PrivacyPage() {
             <ul className="list-disc pl-6 space-y-2">
               <li>Public wallet address (required for gameplay)</li>
               <li>Transaction history related to Domin8 games</li>
-              <li>On-chain activity (publicly visible on Solana blockchain)</li>
+              <li>On-chain activity (publicly visible on TON blockchain)</li>
             </ul>
 
             <h3 className="text-lg font-semibold text-[#FFA500] mt-4 mb-2">Account Information (via Privy)</h3>
@@ -56,7 +56,7 @@ export function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold text-[#FFD700] mb-3">4. Blockchain Transparency</h2>
             <p>
-              <strong>Important:</strong> Solana is a public blockchain. All transactions,
+              <strong>Important:</strong> TON is a public blockchain. All transactions,
               including bets, winnings, and wallet addresses, are permanently recorded and
               publicly visible. We cannot delete or modify blockchain data.
             </p>
@@ -86,7 +86,7 @@ export function PrivacyPage() {
             <h2 className="text-xl font-bold text-[#FFD700] mb-3">6. Data Retention</h2>
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Off-chain data:</strong> Retained while your account is active, deleted upon request</li>
-              <li><strong>On-chain data:</strong> Permanently stored on Solana blockchain (cannot be deleted)</li>
+              <li><strong>On-chain data:</strong> Permanently stored on TON blockchain (cannot be deleted)</li>
               <li><strong>Analytics data:</strong> Aggregated and anonymized after 90 days</li>
             </ul>
           </section>

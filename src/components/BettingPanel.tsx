@@ -129,7 +129,7 @@ const BettingPanel = memo(function BettingPanel({
 
     const amount = parseFloat(betAmount);
     if (isNaN(amount) || amount < MIN_BET_AMOUNT || amount > MAX_BET_AMOUNT) {
-      toast.error(`Bet amount must be between ${MIN_BET_AMOUNT} and ${MAX_BET_AMOUNT} SOL`);
+      toast.error(`Bet amount must be between ${MIN_BET_AMOUNT} and ${MAX_BET_AMOUNT} TON`);
       return;
     }
 
@@ -348,8 +348,8 @@ const BettingPanel = memo(function BettingPanel({
         <div className="inline-flex items-center gap-1 pl-2">
           {!isLoadingBalance && (
             <img
-              src="/sol-logo.svg"
-              alt="SOL"
+              src="/ton-logo.svg"
+              alt="TON"
               className="w-3 h-3 opacity-50"
               style={{
                 filter:
@@ -379,8 +379,8 @@ const BettingPanel = memo(function BettingPanel({
           {/* Greyed out content underneath */}
           <div className="relative w-1/5 opacity-30">
             <img
-              src="/sol-logo.svg"
-              alt="SOL"
+              src="/ton-logo.svg"
+              alt="TON"
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
             />
             <input
@@ -446,8 +446,8 @@ const BettingPanel = memo(function BettingPanel({
         <div className="inline-flex items-center gap-1 pl-2">
           {!isLoadingBalance && (
             <img
-              src="/sol-logo.svg"
-              alt="SOL"
+              src="/ton-logo.svg"
+              alt="TON"
               className="w-3 h-3 opacity-50"
               style={{
                 filter:
@@ -468,8 +468,8 @@ const BettingPanel = memo(function BettingPanel({
           {/* Greyed out content */}
           <div className="relative w-1/5 opacity-30">
             <img
-              src="/sol-logo.svg"
-              alt="SOL"
+              src="/ton-logo.svg"
+              alt="TON"
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
             />
             <input
@@ -531,8 +531,8 @@ const BettingPanel = memo(function BettingPanel({
           <div className="inline-flex items-center gap-1">
             {!isLoadingBalance && (
               <img
-                src="/sol-logo.svg"
-                alt="SOL"
+                src="/ton-logo.svg"
+                alt="TON"
                 className="w-3 h-3"
                 style={{
                   filter:
@@ -562,8 +562,8 @@ const BettingPanel = memo(function BettingPanel({
             <Eraser className="w-4 h-4 " />
           </button>
           <img
-            src="/sol-logo.svg"
-            alt="SOL"
+            src="/ton-logo.svg"
+            alt="TON"
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
             style={{
               filter:

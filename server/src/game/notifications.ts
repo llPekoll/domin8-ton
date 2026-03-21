@@ -83,7 +83,7 @@ export async function notifyGameCreated(args: {
   map?: number;
 }): Promise<{ success: boolean }> {
   // Only notify on mainnet
-  const isMainnet = config.solanaRpcEndpoint.includes("mainnet");
+  const isMainnet = config.tonNetwork === "mainnet";
   if (!isMainnet) return { success: true };
 
   const potInSol = formatSol(args.totalPot);
@@ -119,7 +119,7 @@ export async function notifyGameWinner(args: {
   totalPot: number;
   participantCount: number;
 }): Promise<{ success: boolean }> {
-  const isMainnet = config.solanaRpcEndpoint.includes("mainnet");
+  const isMainnet = config.tonNetwork === "mainnet";
   if (!isMainnet) return { success: true };
 
   const displayName = truncateAddress(args.winnerWalletAddress);

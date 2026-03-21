@@ -8,10 +8,9 @@ interface ImportMetaEnv {
   // Privy
   readonly VITE_PRIVY_APP_ID: string;
 
-  // Solana
-  readonly VITE_SOLANA_NETWORK: string;
-  readonly VITE_SOLANA_RPC_URL: string;
-  readonly VITE_GAME_PROGRAM_ID: string;
+  // TON
+  readonly VITE_TON_NETWORK: string;
+  readonly VITE_TON_MASTER_ADDRESS: string;
 
   // Logger Configuration
   readonly VITE_LOGGER_ENABLED?: string;

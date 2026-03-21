@@ -2,8 +2,9 @@ import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { useActiveGame } from "../hooks/useActiveGame";
 import { usePlayerNames } from "../contexts/PlayerNamesContext";
 import { useMemo } from "react";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Crown } from "lucide-react";
+
+const NANO_PER_TON = 1_000_000_000;
 
 export function ParticipantListMobile() {
   const { walletAddress } = usePrivyWallet();
@@ -12,7 +13,7 @@ export function ParticipantListMobile() {
 
   const totalPot = useMemo(() => {
     if (!activeGame?.totalDeposit) return 0;
-    return activeGame.totalDeposit.toNumber();
+    return activeGame.totalDeposit;
   }, [activeGame]);
 
   const participants = useMemo(() => {
@@ -24,7 +25,7 @@ export function ParticipantListMobile() {
     activeGame.bets.forEach((bet) => {
       const wallet = activeGame.wallets[bet.walletIndex];
       const walletStr = wallet?.toString() || "";
-      const amount = bet.amount.toNumber();
+      const amount = bet.amount;
 
       const existing = aggregatedBets.get(walletStr);
       if (existing) {
@@ -94,7 +95,7 @@ export function ParticipantListMobile() {
               )}
             </div>
             <div className="text-amber-400 text-xs">
-              {(participant.amount / LAMPORTS_PER_SOL).toFixed(3)} SOL
+              {(participant.amount / NANO_PER_TON).toFixed(3)} TON
               {participant.betCount > 1 && (
                 <span className="text-amber-500/70 ml-1">({participant.betCount} bets)</span>
               )}

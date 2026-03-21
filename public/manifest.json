@@ -1,7 +1,7 @@
 {
   "name": "Domin8",
   "short_name": "D8",
-  "description": "Battle royale betting game on Solana",
+  "description": "Battle royale betting game on TON",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",

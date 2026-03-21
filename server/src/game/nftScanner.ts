@@ -1,11 +1,12 @@
 /**
  * NFT scanning functions for collection holder verification
+ *
+ * TODO: Replace DAS API calls with TON NFT verification.
  */
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { nftCollectionHolders, nftRefreshLimits, characters } from "../db/schema.js";
-import { config } from "../config.js";
-import { Connection, PublicKey } from "@solana/web3.js";
+
 
 /**
  * Verify NFT ownership in real-time using DAS API (Helius)
@@ -31,61 +32,8 @@ export async function verifyNFTOwnershipRealtime(
       return { owns: cached.nftCount > 0, count: cached.nftCount };
     }
 
-    // If not cached and RPC supports DAS API, try real-time check
-    try {
-      const response = await fetch(config.solanaRpcEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: "nft-check",
-          method: "getAssetsByOwner",
-          params: {
-            ownerAddress: walletAddress,
-            page: 1,
-            limit: 100,
-            displayOptions: { showCollectionMetadata: true },
-          },
-        }),
-      });
-
-      const data = await response.json();
-      const items = data?.result?.items || [];
-      const matchingNfts = items.filter(
-        (item: any) =>
-          item.grouping?.some(
-            (g: any) =>
-              g.group_key === "collection" && g.group_value === collectionAddress
-          )
-      );
-
-      const count = matchingNfts.length;
-
-      // Cache the result
-      if (count > 0) {
-        await db
-          .insert(nftCollectionHolders)
-          .values({
-            collectionAddress,
-            walletAddress,
-            nftCount: count,
-            lastVerified: Math.floor(Date.now() / 1000),
-            addedBy: "realtime",
-          })
-          .onConflictDoUpdate({
-            target: [nftCollectionHolders.collectionAddress, nftCollectionHolders.walletAddress],
-            set: {
-              nftCount: count,
-              lastVerified: Math.floor(Date.now() / 1000),
-            },
-          });
-      }
-
-      return { owns: count > 0, count };
-    } catch {
-      // DAS API not available
-      return { owns: false, count: 0 };
-    }
+    // TODO: Implement TON NFT verification (replaces Solana DAS API)
+    return { owns: false, count: 0 };
   } catch (error) {
     console.error("[NFTScanner] Error verifying ownership:", error);
     return { owns: false, count: 0 };

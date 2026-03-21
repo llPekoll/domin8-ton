@@ -1,10 +1,7 @@
-// Solana and Anchor types for the Domin8 program
-import { PublicKey } from "@solana/web3.js";
-import { Buffer } from "buffer";
-import Domin8PrgmIDL from "./idl/domin8_prgm.json";
+// Types for the Domin8 game system (blockchain-agnostic)
 
-// Extract Program ID from IDL
-export const DOMIN8_PROGRAM_ID = new PublicKey(Domin8PrgmIDL.address);
+// Legacy export (kept for backward compatibility)
+export const DOMIN8_PROGRAM_ID = null;
 
 // Game configuration structure
 export interface GameConfig {
@@ -57,12 +54,8 @@ export interface GameRound {
   betWalletIndex?: number[];
 }
 
-// PDA seeds
-export const PDA_SEEDS = {
-  DOMIN8_CONFIG: Buffer.from("domin8_config"),
-  ACTIVE_GAME: Buffer.from("active_game"),
-  DOMIN8_GAME: Buffer.from("domin8_game"),
-} as const;
+// Legacy PDA seeds (unused on TON)
+export const PDA_SEEDS = {} as const;
 
 // Transaction types for logging
 export const TRANSACTION_TYPES = {
@@ -90,7 +83,7 @@ export const GAME_STATUS = {
 
 // Game timing constants (in milliseconds)
 export const GAME_TIMING = {
-  CRON_INTERVAL: 50_000,
+  CRON_INTERVAL: 15_000,      // 15s fallback poll (main sync is via socket)
   SEND_PRIZE_DELAY: 2_000,
   CREATE_GAME_DELAY: 18_000,
 } as const;

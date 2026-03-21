@@ -17,10 +17,10 @@ export function PlayerNamesProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Convert PublicKey objects to strings and deduplicate
+    // Convert to strings and deduplicate
     const addresses = activeGame.wallets
-      .map((wallet: any) => wallet.toBase58())
-      .filter((addr: string, index: number, self: string[]) => self.indexOf(addr) === index);
+      .map((wallet: any) => typeof wallet === "string" ? wallet : wallet?.toString?.() || "")
+      .filter((addr: string, index: number, self: string[]) => addr && self.indexOf(addr) === index);
 
     setWalletAddresses(addresses);
   }, [activeGame]);

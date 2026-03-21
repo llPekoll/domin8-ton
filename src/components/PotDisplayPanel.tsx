@@ -1,8 +1,9 @@
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { useActiveGame } from "../hooks/useActiveGame";
 import { useMemo } from "react";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useGamePhase, isBettingPhase } from "../hooks/useGamePhase";
+
+const NANO_PER_TON = 1_000_000_000;
 
 export function PotDisplayPanel() {
   const { walletAddress } = usePrivyWallet();
@@ -12,7 +13,7 @@ export function PotDisplayPanel() {
   // Calculate total pot
   const totalPot = useMemo(() => {
     if (!activeGame?.totalDeposit) return 0;
-    return activeGame.totalDeposit.toNumber();
+    return activeGame.totalDeposit;
   }, [activeGame]);
 
   // Calculate player's win chance
@@ -28,7 +29,7 @@ export function PotDisplayPanel() {
     });
 
     // Sum up player's total bet amount
-    const playerTotalBet = playerBets.reduce((sum, bet) => sum + bet.amount.toNumber(), 0);
+    const playerTotalBet = playerBets.reduce((sum, bet) => sum + bet.amount, 0);
 
     // Calculate win chance as percentage
     return (playerTotalBet / totalPot) * 100;
@@ -81,7 +82,7 @@ export function PotDisplayPanel() {
                 Total Pot
               </div>
               <div className="text-5xl font-bold text-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)] leading-none">
-                {(totalPot / LAMPORTS_PER_SOL).toFixed(3)} SOL
+                {(totalPot / NANO_PER_TON).toFixed(3)} TON
               </div>
             </div>
 

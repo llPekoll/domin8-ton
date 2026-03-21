@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { PublicKey, SystemProgram, LAMPORTS_PER_SOL, ComputeBudgetProgram, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
 import { X, ArrowUpRight, AlertCircle, Wallet as WalletIcon } from "lucide-react";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
-import { getSharedConnection } from "../lib/sharedConnection";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
-import bs58 from "bs58";
+
+// const NANO_PER_TON = 1_000_000_000;
 
 interface WithdrawDialogProps {
   isOpen: boolean;
@@ -13,7 +12,7 @@ interface WithdrawDialogProps {
 }
 
 export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
-  const { walletAddress, wallet, solBalance, refreshBalance, externalWalletAddress, externalWalletAccountType } = usePrivyWallet();
+  const { walletAddress, wallet, solBalance, refreshBalance: _refreshBalance, externalWalletAddress, externalWalletAccountType } = usePrivyWallet();
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,16 +20,12 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
   if (!isOpen) return null;
 
   const validateAddress = (address: string): boolean => {
-    try {
-      new PublicKey(address);
-      return true;
-    } catch {
-      return false;
-    }
+    // Basic TON address validation (EQ/UQ prefix, 48 chars base64)
+    return /^(EQ|UQ|0:)[A-Za-z0-9_-]{46,48}$/.test(address) || /^0:[a-f0-9]{64}$/.test(address);
   };
 
   const handleMaxClick = () => {
-    // Reserve 0.001 SOL for transaction fees
+    // Reserve 0.001 TON for transaction fees
     const maxAmount = Math.max(0, solBalance - 0.001);
     setAmount(maxAmount.toFixed(6));
   };
@@ -39,7 +34,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
     if (externalWalletAddress) {
       setRecipientAddress(externalWalletAddress);
     } else {
-      toast.info("No external wallet connected. Connect Phantom or another wallet first.");
+      toast.info("No external wallet connected. Connect a TON wallet first.");
     }
   };
 
@@ -56,7 +51,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
     }
 
     if (!validateAddress(recipientAddress)) {
-      toast.error("Invalid Solana address");
+      toast.error("Invalid TON address");
       return;
     }
 
@@ -71,257 +66,23 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
       return;
     }
 
-    // Warn if trying to withdraw everything (need to keep some for rent)
+    // Warn if trying to withdraw everything (need to keep some for fees)
     if (withdrawAmount > solBalance - 0.001) {
-      toast.error("Please keep at least 0.001 SOL for transaction fees");
+      toast.error("Please keep at least 0.001 TON for transaction fees");
       return;
     }
 
     try {
       setIsProcessing(true);
-      toast.loading("Processing withdrawal...", { id: "withdraw" });
 
-      const recipientPubkey = new PublicKey(recipientAddress);
-      const connection = getSharedConnection();
-
-      // HELIUS BEST PRACTICE #1: Use 'confirmed' commitment for latest blockhash
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-
-      // Create transfer instruction
-      const transferInstruction = SystemProgram.transfer({
-        fromPubkey: new PublicKey(walletAddress),
-        toPubkey: recipientPubkey,
-        lamports: Math.floor(withdrawAmount * LAMPORTS_PER_SOL),
-      });
-
-      // HELIUS BEST PRACTICE #2: Simulate transaction to optimize compute units
-      toast.loading("Optimizing transaction...", { id: "withdraw" });
-      
-      const testInstructions = [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-        transferInstruction,
-      ];
-
-      const testMessage = new TransactionMessage({
-        payerKey: new PublicKey(walletAddress),
-        recentBlockhash: blockhash,
-        instructions: testInstructions,
-      }).compileToV0Message();
-
-      const testTransaction = new VersionedTransaction(testMessage);
-
-      const simulation = await connection.simulateTransaction(testTransaction, {
-        replaceRecentBlockhash: true,
-        sigVerify: false,
-      });
-
-      if (!simulation.value.unitsConsumed) {
-        throw new Error("Simulation failed to return compute units");
-      }
-
-      // Add 10% buffer to compute units (Helius recommendation)
-      const computeUnits = simulation.value.unitsConsumed < 1000 
-        ? 1000 
-        : Math.ceil(simulation.value.unitsConsumed * 1.1);
-
-      // HELIUS BEST PRACTICE #3: Get dynamic priority fee estimate
-      const priorityFee = await getPriorityFeeEstimate(connection, blockhash, walletAddress);
-
-      // Build final optimized transaction with compute budget instructions
-      const finalInstructions = [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }),
-        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
-        transferInstruction,
-      ];
-
-      const finalMessage = new TransactionMessage({
-        payerKey: new PublicKey(walletAddress),
-        recentBlockhash: blockhash,
-        instructions: finalInstructions,
-      }).compileToV0Message();
-
-      const finalTransaction = new VersionedTransaction(finalMessage);
-
-      toast.loading("Signing and sending transaction...", { id: "withdraw" });
-
-      // Serialize the transaction
-      const serializedTx = finalTransaction.serialize();
-
-      // Determine network/chainId
-      const network = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-      const chainId = `solana:${network}` as `${string}:${string}`;
-
-      // Use Privy's signAndSendAllTransactions
-      if (!wallet.signAndSendAllTransactions) {
-        throw new Error("Wallet does not support signing and sending transactions");
-      }
-
-      // HELIUS BEST PRACTICE #4: Send with skipPreflight (handled by Privy's internal logic)
-      // HELIUS BEST PRACTICE #5: Implement custom retry logic instead of relying on maxRetries
-      let signature: string | null = null;
-      const maxRetries = 3;
-
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-          // Check if blockhash is still valid
-          const currentBlockHeight = await connection.getBlockHeight('confirmed');
-          if (currentBlockHeight > lastValidBlockHeight) {
-            throw new Error('Blockhash expired, transaction failed.');
-          }
-
-          const results = await wallet.signAndSendAllTransactions([
-            {
-              chain: chainId,
-              transaction: serializedTx,
-            },
-          ]);
-
-          if (!results || results.length === 0 || !results[0].signature) {
-            throw new Error("Transaction failed - no signature returned");
-          }
-
-          // Convert signature from Uint8Array to base58 string
-          const signatureBytes = results[0].signature;
-          signature = bs58.encode(signatureBytes);
-
-          // Confirm transaction with polling
-          const confirmed = await confirmTransaction(connection, signature, lastValidBlockHeight);
-          if (confirmed) {
-            break;
-          }
-        } catch (error: any) {
-          console.warn(`Withdrawal attempt ${attempt + 1} failed:`, error);
-          if (attempt === maxRetries - 1) {
-            throw error;
-          }
-          // Wait before retry (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-        }
-      }
-
-      if (!signature) {
-        throw new Error("All retry attempts failed");
-      }
-
-      toast.success(`Successfully withdrawn ${withdrawAmount} SOL!`, { id: "withdraw" });
-      console.log("Withdrawal transaction:", signature);
-
-      // Refresh balance
-      await refreshBalance();
-
-      // Reset form and close
-      setRecipientAddress("");
-      setAmount("");
-      onClose();
+      // TODO: Implement TON withdrawal via TonConnect
+      toast.error("Withdrawal not yet implemented for TON");
     } catch (error: any) {
       console.error("Withdraw error:", error);
-      toast.error(error.message || "Failed to withdraw funds", { id: "withdraw" });
+      toast.error(error.message || "Failed to withdraw funds");
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  /**
-   * Get dynamic priority fee estimate using Helius Priority Fee API
-   * @param connection - Solana connection
-   * @param blockhash - Recent blockhash
-   * @param payerKey - Payer public key
-   * @returns Priority fee in microlamports
-   */
-  const getPriorityFeeEstimate = async (
-    connection: any,
-    blockhash: string,
-    payerKey: string
-  ): Promise<number> => {
-    try {
-      // Create a temporary transaction for fee estimation
-      const tempInstructions = [
-        SystemProgram.transfer({
-          fromPubkey: new PublicKey(payerKey),
-          toPubkey: new PublicKey(recipientAddress),
-          lamports: Math.floor(parseFloat(amount) * LAMPORTS_PER_SOL),
-        }),
-      ];
-
-      const tempMessage = new TransactionMessage({
-        payerKey: new PublicKey(payerKey),
-        recentBlockhash: blockhash,
-        instructions: tempInstructions,
-      }).compileToV0Message();
-
-      const tempTx = new VersionedTransaction(tempMessage);
-      const serializedTx = bs58.encode(tempTx.serialize());
-
-      const response = await fetch(connection.rpcEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: "1",
-          method: "getPriorityFeeEstimate",
-          params: [{
-            transaction: serializedTx,
-            options: { 
-              recommended: true  // Use Helius recommended fee for staked connections
-            }
-          }]
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.result?.priorityFeeEstimate) {
-        // Add 20% buffer to recommended fee for safety
-        return Math.ceil(data.result.priorityFeeEstimate * 1.2);
-      }
-
-      // Fallback to medium priority if API fails
-      return 50_000; // 50k microlamports
-    } catch (error) {
-      console.warn("Priority fee estimation failed, using fallback:", error);
-      return 50_000; // Fallback fee
-    }
-  };
-
-  /**
-   * Confirm transaction with polling and blockhash expiry check
-   * @param connection - Solana connection
-   * @param signature - Transaction signature
-   * @param lastValidBlockHeight - Last valid block height for the transaction
-   * @returns True if confirmed, false otherwise
-   */
-  const confirmTransaction = async (
-    connection: any,
-    signature: string,
-    lastValidBlockHeight: number
-  ): Promise<boolean> => {
-    const timeout = 15000; // 15 seconds
-    const interval = 2000; // 2 seconds
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < timeout) {
-      try {
-        const statuses = await connection.getSignatureStatuses([signature]);
-        const status = statuses?.value?.[0];
-
-        if (status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')) {
-          return true;
-        }
-
-        // Check if blockhash expired
-        const currentBlockHeight = await connection.getBlockHeight('confirmed');
-        if (currentBlockHeight > lastValidBlockHeight) {
-          console.warn('Blockhash expired during confirmation polling');
-          return false;
-        }
-      } catch (error) {
-        console.warn('Status check failed:', error);
-      }
-
-      await new Promise(resolve => setTimeout(resolve, interval));
-    }
-
-    return false;
   };
 
   return (
@@ -343,7 +104,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">Withdraw Funds</h2>
-                <p className="text-sm text-gray-400">Send SOL to any address</p>
+                <p className="text-sm text-gray-400">Send TON to any address</p>
               </div>
             </div>
             <button
@@ -363,7 +124,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                 {walletAddress?.slice(0, 4)}...{walletAddress?.slice(-4)}
               </div>
             </div>
-            <div className="text-2xl font-bold text-white">{solBalance.toFixed(6)} SOL</div>
+            <div className="text-2xl font-bold text-white">{solBalance.toFixed(6)} TON</div>
           </div>
 
           {/* Form */}
@@ -389,14 +150,14 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                 type="text"
                 value={recipientAddress}
                 onChange={(e) => setRecipientAddress(e.target.value)}
-                placeholder="Enter Solana wallet address"
+                placeholder="Enter TON wallet address"
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 disabled={isProcessing}
               />
               {recipientAddress && !validateAddress(recipientAddress) && (
                 <div className="flex items-center gap-2 mt-2 text-red-400 text-sm">
                   <AlertCircle className="w-4 h-4" />
-                  <span>Invalid Solana address</span>
+                  <span>Invalid TON address</span>
                 </div>
               )}
             </div>
@@ -404,7 +165,7 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
             {/* Amount */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-300">Amount (SOL)</label>
+                <label className="block text-sm font-medium text-gray-300">Amount (TON)</label>
                 <button
                   onClick={handleMaxClick}
                   className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
@@ -433,8 +194,8 @@ export function WithdrawDialog({ isOpen, onClose }: WithdrawDialogProps) {
                 <div className="text-sm text-yellow-200">
                   <p className="font-medium mb-1">Important</p>
                   <p className="text-yellow-300/80">
-                    Double-check the recipient address. Transactions on Solana are irreversible.
-                    Keep some SOL for future transaction fees.
+                    Double-check the recipient address. Transactions on TON are irreversible.
+                    Keep some TON for future transaction fees.
                   </p>
                 </div>
               </div>

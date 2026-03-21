@@ -43,7 +43,7 @@ export function GameStatePage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">On-Chain Game State</h1>
-            <p className="text-gray-400">Live data from Solana blockchain</p>
+            <p className="text-gray-400">Live data from TON blockchain</p>
           </div>
           <Link
             to="/"

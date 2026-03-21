@@ -18,10 +18,10 @@ export function testLogger() {
   
   console.log('\n--- Category-specific logging ---\n');
   
-  // Test Solana category
-  logger.solana.info('Transaction sent successfully');
-  logger.solana.debug('PDA derived:', { address: '0x123...', seeds: ['example'] });
-  logger.solana.error('Transaction failed:', new Error('Network timeout'));
+  // Test chain category
+  logger.chain.info('Transaction sent successfully');
+  logger.chain.debug('PDA derived:', { address: '0x123...', seeds: ['example'] });
+  logger.chain.error('Transaction failed:', new Error('Network timeout'));
   
   // Test UI category
   logger.ui.info('Component mounted: CharacterSelection');
@@ -34,18 +34,18 @@ export function testLogger() {
   console.log('\n--- Grouping ---\n');
   
   // Test grouping
-  logger.solana.group('Creating new game transaction');
-  logger.solana.debug('Step 1: Deriving PDAs...');
-  logger.solana.debug('Step 2: Creating transaction...');
-  logger.solana.debug('Step 3: Signing transaction...');
-  logger.solana.groupEnd();
+  logger.chain.group('Creating new game transaction');
+  logger.chain.debug('Step 1: Deriving PDAs...');
+  logger.chain.debug('Step 2: Creating transaction...');
+  logger.chain.debug('Step 3: Signing transaction...');
+  logger.chain.groupEnd();
   
   console.log('\n--- Timing ---\n');
   
   // Test timing
-  logger.solana.time('mock-transaction');
+  logger.chain.time('mock-transaction');
   setTimeout(() => {
-    logger.solana.timeEnd('mock-transaction');
+    logger.chain.timeEnd('mock-transaction');
   }, 100);
   
   console.log('\n--- Table Display ---\n');
@@ -56,7 +56,7 @@ export function testLogger() {
     { name: 'Player2', balance: 2.3, status: 'waiting' },
     { name: 'Player3', balance: 0.8, status: 'active' },
   ];
-  logger.solana.table(participants);
+  logger.chain.table(participants);
   
   console.log('\n--- Configuration Info ---\n');
   
@@ -69,7 +69,7 @@ export function testLogger() {
   console.log('\n=== Test Complete ===\n');
   console.log('💡 Try changing environment variables in .env.local:');
   console.log('   - VITE_LOG_LEVEL=INFO (to hide debug logs)');
-  console.log('   - VITE_LOG_CATEGORIES=SOLANA (to show only Solana logs)');
+  console.log('   - VITE_LOG_CATEGORIES=CHAIN (to show only Chain logs)');
   console.log('   - VITE_LOGGER_ENABLED=false (to disable all logging)');
   console.log('');
 }

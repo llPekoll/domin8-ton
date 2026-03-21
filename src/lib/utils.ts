@@ -5,27 +5,3 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function getSolanaRpcUrl(): string {
-  // Use custom RPC URL if provided (e.g., Helius, QuickNode)
-  const customRpcUrl = import.meta.env.VITE_SOLANA_RPC_URL;
-  if (customRpcUrl) {
-    return customRpcUrl;
-  }
-
-  // Fallback to network-based defaults
-  const network = import.meta.env.VITE_SOLANA_NETWORK || "localnet";
-
-  switch (network) {
-    case "mainnet":
-    case "mainnet-beta":
-      return "https://api.mainnet-beta.solana.com";
-    case "testnet":
-      return "https://api.testnet.solana.com";
-    case "localnet":
-      return "http://localhost:8899";
-    case "devnet":
-      return "https://api.devnet.solana.com";
-    default:
-      return "http://localhost:8899";
-  }
-}

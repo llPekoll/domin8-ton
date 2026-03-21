@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { characters, maps } from "../db/schema.js";
 import { config } from "../config.js";
-import { SolanaClient } from "../lib/solana.js";
+import { TonGameClient } from "../lib/ton.js";
 
 export const apiRoutes = new Hono();
 
@@ -18,16 +18,22 @@ apiRoutes.get("/api/health", (c) => {
 
 apiRoutes.get("/api/config", async (c) => {
   try {
-    if (!config.crankAuthorityPrivateKey) {
-      return c.json({ error: "Crank authority not configured" }, 500);
+    if (!config.tonMnemonic || !config.tonMasterAddress) {
+      return c.json({ error: "TON not configured" }, 500);
     }
 
-    const solanaClient = new SolanaClient(
-      config.solanaRpcEndpoint,
-      config.crankAuthorityPrivateKey
+    const endpoint = config.tonNetwork === "mainnet"
+      ? "https://toncenter.com/api/v2/jsonRPC"
+      : "https://testnet.toncenter.com/api/v2/jsonRPC";
+
+    const tonClient = new TonGameClient(
+      endpoint,
+      config.tonMnemonic,
+      config.tonMasterAddress,
+      config.tonCenterApiKey
     );
-    const gameConfig = await solanaClient.getGameConfig();
-    const health = await solanaClient.healthCheck();
+    const gameConfig = await tonClient.getGameConfig();
+    const health = await tonClient.healthCheck();
 
     return c.json({
       gameConfig,

@@ -8,6 +8,13 @@
       "when": 1773515632021,
       "tag": "0000_ambitious_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774087853894,
+      "tag": "0001_red_sentinel",
+      "breakpoints": true
     }
   ]
 }

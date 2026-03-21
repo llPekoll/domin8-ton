@@ -44,8 +44,7 @@ export function CopyrightPage() {
             <ul className="list-disc pl-6 space-y-2 mt-2">
               <li>React (MIT License)</li>
               <li>Phaser.js (MIT License)</li>
-              <li>Solana Web3.js (Apache 2.0)</li>
-              <li>Anchor Framework (Apache 2.0)</li>
+              <li>TON SDK (Apache 2.0)</li>
               <li>Convex (Proprietary)</li>
             </ul>
           </section>

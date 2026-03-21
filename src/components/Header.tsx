@@ -1,6 +1,7 @@
 import { useActiveWallet } from "../contexts/ActiveWalletContext";
 import { useSocket, socketRequest } from "../lib/socket";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, Link } from "react-router-dom";
 import { ProfileDialog } from "./ProfileDialog";
 import { WithdrawDialog } from "./WithdrawDialog";
 import { LeaderboardDialog } from "./LeaderboardDialog";
@@ -104,9 +105,15 @@ export function Header() {
         <div className="w-full bg-gray-950/90 px-3 md:px-6 py-1 backdrop-blur-sm shadow-sm shadow-indigo-500/20">
           <div className="flex items-center justify-between gap-2 md:gap-6">
             {/* Logo */}
-            <div className="flex items-center shrink-0">
-              <img src="/assets/logo.webp" alt="Enrageded" className="h-8 md:h-12 w-auto" />
-            </div>
+            <Link to="/" className="flex items-center shrink-0">
+              <img src="/assets/logo.webp" alt="Domin8" className="h-8 md:h-12 w-auto" />
+            </Link>
+
+            {/* Nav Links */}
+            <nav className="flex items-center gap-1 md:gap-2 ml-2 md:ml-4">
+              <NavLink to="/" label="Arena" />
+              <NavLink to="/1v1" label="1v1" />
+            </nav>
 
             <div className="flex-1" />
 
@@ -202,8 +209,8 @@ export function Header() {
                           ) : solBalance !== null ? (
                             <>
                               <img
-                                src="/sol-logo.svg"
-                                alt="SOL"
+                                src="/ton-logo.svg"
+                                alt="TON"
                                 className="w-3 h-3"
                                 style={{
                                   filter:
@@ -234,8 +241,8 @@ export function Header() {
                             ) : solBalance !== null ? (
                               <>
                                 <img
-                                  src="/sol-logo.svg"
-                                  alt="SOL"
+                                  src="/ton-logo.svg"
+                                  alt="TON"
                                   className="w-3 h-3"
                                   style={{
                                     filter:
@@ -330,5 +337,22 @@ export function Header() {
 
       <LeaderboardDialog open={showLeaderboardDialog} onOpenChange={setShowLeaderboardDialog} />
     </>
+  );
+}
+
+function NavLink({ to, label }: { to: string; label: string }) {
+  const location = useLocation();
+  const isActive = location.pathname === to;
+  return (
+    <Link
+      to={to}
+      className={`px-3 py-1.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all ${
+        isActive
+          ? "bg-amber-600/80 text-amber-100 shadow-md"
+          : "text-indigo-300 hover:bg-indigo-800/40 hover:text-indigo-100"
+      }`}
+    >
+      {label}
+    </Link>
   );
 }

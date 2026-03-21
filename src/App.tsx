@@ -80,7 +80,7 @@ export default function App() {
   const { connected, ready: walletReady, publicKey, externalWalletAddress } = usePrivyWallet();
 
   // Get boss info (previous winner)
-  const walletAddress = publicKey?.toBase58() || null;
+  const walletAddress = publicKey?.toString() || null;
   const { isBoss, bossWallet } = useBossInfo(walletAddress);
 
   // Track boss's first bet in current round (resets when round changes)
@@ -89,7 +89,7 @@ export default function App() {
   const [lastRoundId, setLastRoundId] = useState<string | null>(null);
 
   // Auto-create player when wallet connects
-  useAutoCreatePlayer(connected, publicKey?.toBase58() || null, externalWalletAddress || undefined);
+  useAutoCreatePlayer(connected, publicKey?.toString() || null, externalWalletAddress || undefined);
 
   // Get current game state directly from blockchain (no Convex, <1s updates)
   const { activeGame: currentRoundState } = useActiveGame();
@@ -144,7 +144,7 @@ export default function App() {
       betCount: currentRoundState.bets?.length || 0,
       betSignature, // Detects new bets even if count stays same
       map: currentRoundState.map,
-      winner: currentRoundState.winner?.toBase58(),
+      winner: currentRoundState.winner?.toString(),
       endDate: currentRoundState.endDate?.toString(),
       // Include the full data for Phaser to use
       _fullData: currentRoundState,
@@ -157,13 +157,13 @@ export default function App() {
       ?.map((b) => `${b.walletIndex}-${b.amount?.toString()}-${b.skin}`)
       .join("|"),
     currentRoundState?.map,
-    currentRoundState?.winner?.toBase58(),
+    currentRoundState?.winner?.toString(),
     currentRoundState?.endDate?.toString(),
   ]);
 
   // Update current user wallet in Phaser
   useEffect(() => {
-    const walletAddress = publicKey?.toBase58() || null;
+    const walletAddress = publicKey?.toString() || null;
     setCurrentUserWallet(walletAddress);
   }, [publicKey]);
 

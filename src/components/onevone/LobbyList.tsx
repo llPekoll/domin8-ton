@@ -1,9 +1,13 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useActiveWallet } from "../../contexts/ActiveWalletContext";
 import { useSocket, socketRequest } from "../../lib/socket";
+import { useTonConnectUI } from "@tonconnect/ui-react";
+import { toNano, beginCell } from "@ton/core";
 import { toast } from "sonner";
 import { logger } from "../../lib/logger";
 import type { Character } from "../../types/character";
+
+const OP_JOIN_LOBBY = 0xfbbd3a85;
 
 interface LobbyData {
   _id: string;
@@ -36,7 +40,8 @@ export function LobbyList({
   onLobbyJoined,
   onLobbySelected,
 }: LobbyListProps) {
-  const { connected, activeWallet: wallet, activePublicKey: publicKey } = useActiveWallet();
+  const { connected, walletAddress, activePublicKey: publicKey } = useActiveWallet();
+  const wallet = walletAddress; // compat
   const { socket } = useSocket();
   const joinLobbyAction = useCallback(
     async (args: any) => {
@@ -50,7 +55,7 @@ export function LobbyList({
   const [joiningLobbies, setJoiningLobbies] = useState<Set<number>>(new Set());
   const [activeTab, setActiveTab] = useState<"open" | "my">("open");
   
-  logger.solana.debug("Rendering LobbyList with lobbies:", lobbies);
+  logger.chain.debug("Rendering LobbyList with lobbies:", lobbies);
 
   // Filter lobbies based on active tab
   const openLobbies = lobbies.filter(
@@ -84,6 +89,8 @@ export function LobbyList({
     return new Map(playerNames.map((p) => [p.walletAddress, p.displayName]));
   }, [playerNames]);
 
+  const [tonConnectUI] = useTonConnectUI();
+
   const handleJoinLobby = useCallback(
     async (lobby: LobbyData) => {
       if (!connected || !selectedCharacter || !wallet || !publicKey) {
@@ -96,129 +103,66 @@ export function LobbyList({
         return;
       }
 
+      if (!lobby.lobbyPda) {
+        toast.error("Lobby address not found");
+        return;
+      }
+
       setJoiningLobbies((prev) => new Set(prev).add(lobby.lobbyId));
 
       try {
-        // Import utilities
-        const { getSharedConnection } = await import("../../lib/sharedConnection");
-        const { buildJoinLobbyTransaction, get1v1LobbyPDA } = await import("../../lib/solana-1v1-transactions");
-
-        const connection = getSharedConnection();
-
         logger.ui.info("Joining lobby", {
           lobbyId: lobby.lobbyId,
           playerB: currentPlayerWallet,
           character: selectedCharacter.id,
         });
 
-        // Derive the lobby PDA from lobbyId (don't rely on database value which may be invalid)
-        const lobbyPda = get1v1LobbyPDA(lobby.lobbyId);
-        const transaction = await buildJoinLobbyTransaction(
-          publicKey!, // Use the PublicKey from usePrivyWallet hook
-          lobby.lobbyId,
-          selectedCharacter.id,
-          lobbyPda,
-          connection
-        );
+        // Step 1: Send JoinLobby tx to lobby child contract via TonConnect (actual payment)
+        const betAmountTon = lobby.amount / 1e9;
+        const totalAmount = toNano((betAmountTon + 0.05).toFixed(9)); // bet + gas
 
-        logger.solana.debug("Transaction ready for signing", {
-          type: transaction.constructor.name,
-          messageType: transaction.message.constructor.name,
-          messageLength: transaction.message.serialize().length,
-          keysCount: transaction.message.staticAccountKeys?.length,
-          instructionCount: transaction.message.compiledInstructions?.length,
-        });
+        const payload = beginCell()
+          .storeUint(OP_JOIN_LOBBY, 32)
+          .storeUint(0, 64) // queryId
+          .storeUint(selectedCharacter.id, 8) // skin
+          .endCell()
+          .toBoc()
+          .toString("base64");
 
-        // Sign and send using Privy's signAndSendAllTransactions
-        logger.solana.info("Attempting to sign transaction with Privy wallet...");
-        
-        const chainId = `solana:devnet` as `${string}:${string}`;
-        
-        // For VersionedTransaction, serialize the full transaction (not just the message)
-        // This includes the message and placeholder signatures
-        const serialized = Buffer.from(transaction.serialize());
-        
-        logger.solana.debug("Serialized transaction", {
-          serializedLength: serialized.length,
-          serializedHex: serialized.slice(0, 32).toString("hex"),
-        });
-        
-        let signAndSendResult;
-        try {
-          signAndSendResult = await wallet.signAndSendAllTransactions([
+        toast.loading("Confirm in your wallet...", { id: "join-lobby-tx" });
+
+        await tonConnectUI.sendTransaction({
+          validUntil: Math.floor(Date.now() / 1000) + 300,
+          messages: [
             {
-              chain: chainId,
-              transaction: serialized,
+              address: lobby.lobbyPda,
+              amount: totalAmount.toString(),
+              payload,
             },
-          ]);
-        } catch (privyError: any) {
-          logger.solana.error("Privy wallet error (likely simulation failure):", {
-            message: privyError?.message,
-            code: privyError?.code,
-            fullError: privyError,
-          });
-          throw new Error(`Privy wallet error: ${privyError?.message || String(privyError)}`);
-        }
-        
-        logger.solana.debug("Sign and send result", {
-          resultCount: signAndSendResult?.length,
-          firstResult: signAndSendResult?.[0],
+          ],
         });
-        
-        if (!signAndSendResult || signAndSendResult.length === 0) {
-          throw new Error("Failed to get signature from Privy wallet");
-        }
-        
-        const signatureBytes = signAndSendResult[0].signature;
-        if (!signatureBytes) {
-          throw new Error("No signature in Privy response");
-        }
-        
-        // Import bs58 for signature encoding
-        const { default: bs58 } = await import("bs58");
-        const signature = bs58.encode(signatureBytes);
-        
-        logger.solana.info("Join transaction signed and sent", { signature });
-        toast.loading("Waiting for transaction confirmation...", { id: "join-tx-confirm" });
-        
-        const confirmation = await connection.confirmTransaction(signature, "confirmed");
-        
-        if (confirmation.value.err) {
-            throw new Error("Transaction failed: " + confirmation.value.err.toString());
-        }
 
-        toast.success("Transaction confirmed!", { id: "join-tx-confirm" });
-        logger.ui.info("Join transaction confirmed on blockchain", { signature });
-
-        // Call Convex action to update lobby in database
-        logger.ui.debug("Calling Convex action to update lobby in database");
-
-        const result = await joinLobbyAction({
-          playerBWallet: currentPlayerWallet,
+        // Step 2: Tell backend player B joined (triggers settlement)
+        const lobbyData = await joinLobbyAction({
+          playerB: currentPlayerWallet,
           lobbyId: lobby.lobbyId,
           characterB: selectedCharacter.id,
-          transactionHash: signature,
         });
 
-        if (result.success) {
-          logger.ui.info("Lobby joined successfully", {
-            lobbyId: result.lobbyId,
-          });
+        toast.success("You joined the lobby! Starting fight...", {
+          id: "join-lobby-tx",
+          duration: 5000,
+        });
 
-          toast.success("You joined the lobby! Starting fight...", {
-            duration: 5000,
-          });
-
-          // Callback to parent component to start fight
-          onLobbyJoined?.(result.lobbyId);
-        } else {
-          toast.error("Failed to update lobby in database");
-          logger.ui.error("Convex action failed");
-        }
+        onLobbyJoined?.(lobbyData?.lobbyId ?? lobby.lobbyId);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         logger.ui.error("Failed to join lobby:", error);
-        toast.error("Failed to join lobby: " + errorMsg);
+        if (errorMsg.includes("Rejected") || errorMsg.includes("rejected")) {
+          toast.error("Transaction rejected", { id: "join-lobby-tx" });
+        } else {
+          toast.error("Failed to join lobby: " + errorMsg, { id: "join-lobby-tx" });
+        }
       } finally {
         setJoiningLobbies((prev) => {
           const next = new Set(prev);
@@ -227,11 +171,11 @@ export function LobbyList({
         });
       }
     },
-    [connected, wallet, selectedCharacter, currentPlayerWallet, onLobbyJoined, joinLobbyAction]
+    [connected, wallet, publicKey, selectedCharacter, currentPlayerWallet, onLobbyJoined, joinLobbyAction]
   );
 
-  const formatAmount = (lamports: number) => {
-    return (lamports / 1e9).toFixed(3);
+  const formatAmount = (nanotons: number) => {
+    return (nanotons / 1e9).toFixed(3);
   };
 
   const handleCopyShareLink = useCallback(async (lobby: LobbyData, e: React.MouseEvent) => {
@@ -352,7 +296,7 @@ export function LobbyList({
                   {/* Amount & Actions */}
                   <div className="flex items-center gap-3 ml-6">
                     <div className="flex items-center gap-1 bg-gray-800/80 px-3 py-1.5 rounded-lg">
-                      <img src="/sol-logo.svg" alt="SOL" className="w-4 h-4" />
+                      <span className="text-amber-400 font-bold text-xs">TON</span>
                       <span className="text-white font-bold">{formatAmount(lobby.amount)}</span>
                     </div>
 

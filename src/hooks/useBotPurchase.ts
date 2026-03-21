@@ -8,38 +8,23 @@
 import { useCallback, useState, useEffect } from "react";
 import { useSocket, socketRequest } from "../lib/socket";
 import { usePrivyWallet } from "./usePrivyWallet";
-import { useWallets } from "@privy-io/react-auth/solana";
-import {
-  PublicKey,
-  Transaction,
-  SystemProgram,
-  LAMPORTS_PER_SOL,
-} from "@solana/web3.js";
 import { toast } from "sonner";
 import { logger } from "../lib/logger";
-import { getSharedConnection } from "~/lib/sharedConnection";
-import bs58 from "bs58";
 
-// Treasury wallet for bot purchases (from env)
-const BOT_TREASURY_WALLET = new PublicKey(
-  import.meta.env.VITE_BOT_TREASURY_WALLET || "11111111111111111111111111111111"
-);
+const NANO_PER_TON = 1_000_000_000;
 
-// Bot pricing in lamports
+// Bot pricing in nanotons
 const BOT_PRICES = {
-  rookie: 100_000_000, // 0.1 SOL
-  pro: 500_000_000, // 0.5 SOL
-  elite: 1_000_000_000, // 1.0 SOL
+  rookie: 100_000_000, // 0.1 TON
+  pro: 500_000_000, // 0.5 TON
+  elite: 1_000_000_000, // 1.0 TON
 } as const;
 
 export type BotTier = keyof typeof BOT_PRICES;
 
-// Network from env
-const SOLANA_NETWORK = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
-
 export function useBotPurchase() {
   const { connected, publicKey, walletAddress, solBalance } = usePrivyWallet();
-  const { wallets } = useWallets();
+  const wallets: any[] = []; // TODO: TON migration - bot purchase needs rework
   const { socket } = useSocket();
 
   // State for queries
@@ -84,7 +69,7 @@ export function useBotPurchase() {
   );
 
   /**
-   * Send SOL to treasury and record purchase
+   * Send TON to treasury and record purchase
    */
   const purchaseBot = useCallback(
     async (tier: BotTier): Promise<{ success: boolean; signature?: string; error?: string }> => {
@@ -93,13 +78,13 @@ export function useBotPurchase() {
       }
 
       const price = BOT_PRICES[tier];
-      const priceSOL = price / LAMPORTS_PER_SOL;
+      const priceTON = price / NANO_PER_TON;
 
       // Check balance
-      if (solBalance !== null && solBalance < priceSOL + 0.001) {
+      if (solBalance !== null && solBalance < priceTON + 0.001) {
         return {
           success: false,
-          error: `Insufficient balance. Need ${priceSOL + 0.001} SOL, have ${solBalance.toFixed(3)} SOL`,
+          error: `Insufficient balance. Need ${priceTON + 0.001} TON, have ${solBalance.toFixed(3)} TON`,
         };
       }
 
@@ -112,66 +97,15 @@ export function useBotPurchase() {
       }
 
       try {
-        logger.ui.debug(`[useBotPurchase] Purchasing ${tier} bot for ${priceSOL} SOL`);
+        logger.ui.debug(`[useBotPurchase] Purchasing ${tier} bot for ${priceTON} TON`);
 
-        // Get Privy wallet
-        const privyWallet = wallets.find((w) => w.address === walletAddress);
-        if (!privyWallet) {
-          return { success: false, error: "Privy wallet not found" };
-        }
+        // TODO: Implement TON transfer
+        // Build and send a TON transaction to the treasury wallet
+        // Then capture the transaction signature/hash
+        const signature = ""; // placeholder
 
-        // Build transfer transaction
-        const connection = getSharedConnection();
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
-
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: BOT_TREASURY_WALLET,
-            lamports: price,
-          })
-        );
-
-        transaction.recentBlockhash = blockhash;
-        transaction.lastValidBlockHeight = lastValidBlockHeight;
-        transaction.feePayer = publicKey;
-
-        // Sign and send via Privy
-        const chainId = `solana:${SOLANA_NETWORK}` as `${string}:${string}`;
-        const serialized = transaction.serialize({
-          requireAllSignatures: false,
-          verifySignatures: false,
-        });
-
-        const result = await privyWallet.signAndSendAllTransactions([
-          {
-            chain: chainId,
-            transaction: serialized,
-          },
-        ]);
-
-        if (!result || result.length === 0 || !result[0].signature) {
-          return { success: false, error: "Transaction failed - no signature returned" };
-        }
-
-        const signature = bs58.encode(result[0].signature);
-        logger.ui.debug(`[useBotPurchase] Transaction sent: ${signature}`);
-
-        // Wait for confirmation
-        const confirmation = await connection.confirmTransaction(
-          {
-            signature,
-            blockhash,
-            lastValidBlockHeight,
-          },
-          "confirmed"
-        );
-
-        if (confirmation.value.err) {
-          return {
-            success: false,
-            error: `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
-          };
+        if (!signature) {
+          return { success: false, error: "TON transfer not yet implemented" };
         }
 
         // Record purchase in database via socket
@@ -254,7 +188,7 @@ export function useBotPurchase() {
 
       return {
         cost: BOT_PRICES[tier],
-        costSOL: BOT_PRICES[tier] / LAMPORTS_PER_SOL,
+        costSOL: BOT_PRICES[tier] / NANO_PER_TON,
       };
     },
     [ownsTier]
@@ -280,8 +214,8 @@ export function useBotPurchase() {
     canAfford: (tier: BotTier) => {
       if (solBalance === null) return false;
       if (ownsTier(tier)) return false; // Already owned
-      const priceSOL = BOT_PRICES[tier] / LAMPORTS_PER_SOL;
-      return solBalance >= priceSOL + 0.001;
+      const priceTON = BOT_PRICES[tier] / NANO_PER_TON;
+      return solBalance >= priceTON + 0.001;
     },
   };
 }

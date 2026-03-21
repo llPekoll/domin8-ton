@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
+import { useLocation, Link } from "react-router-dom";
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { useFundWallet } from "../hooks/useFundWallet";
 import { PrivyWalletButton } from "./PrivyWalletButton";
@@ -92,9 +92,12 @@ export function HeaderMobile() {
       <header className="shrink-0 bg-gray-950/90 backdrop-blur-sm relative z-50">
         <div className="flex items-center justify-between px-3 py-1">
           {/* Logo */}
-          <div className="flex items-center shrink-0">
-            <img src="/assets/logo.webp" alt="Enrageded" className="h-8 w-auto" />
-          </div>
+          <Link to="/" className="flex items-center shrink-0">
+            <img src="/assets/logo.webp" alt="Domin8" className="h-8 w-auto" />
+          </Link>
+
+          {/* Nav Links */}
+          <MobileNav />
 
           <div className="flex-1" />
 
@@ -117,8 +120,8 @@ export function HeaderMobile() {
                       ) : solBalance !== null ? (
                         <>
                           <img
-                            src="/sol-logo.svg"
-                            alt="SOL"
+                            src="/ton-logo.svg"
+                            alt="TON"
                             className="w-3 h-3"
                             style={{
                               filter:
@@ -199,5 +202,29 @@ export function HeaderMobile() {
 
       <WithdrawDialog isOpen={showWithdrawDialog} onClose={() => setShowWithdrawDialog(false)} />
     </>
+  );
+}
+
+function MobileNav() {
+  const location = useLocation();
+  return (
+    <nav className="flex items-center gap-1 ml-2">
+      {[
+        { to: "/", label: "Arena" },
+        { to: "/1v1", label: "1v1" },
+      ].map(({ to, label }) => (
+        <Link
+          key={to}
+          to={to}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+            location.pathname === to
+              ? "bg-amber-600/80 text-amber-100"
+              : "text-indigo-300 hover:bg-indigo-800/40"
+          }`}
+        >
+          {label}
+        </Link>
+      ))}
+    </nav>
   );
 }

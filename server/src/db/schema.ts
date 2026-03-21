@@ -500,6 +500,26 @@ export const chatMessages = pgTable(
 // PRESENCE BOT TABLE
 // ============================================================================
 
+// ============================================================================
+// COMMIT-REVEAL SECRETS (survives server restarts)
+// ============================================================================
+
+export const gameSecrets = pgTable(
+  "game_secrets",
+  {
+    id: serial("id").primaryKey(),
+    roundId: integer("round_id").notNull(),
+    secret: text("secret").notNull(), // hex string of the uint256 secret
+    commitHash: text("commit_hash").notNull(),
+    type: text("type").notNull().default("arena"), // "arena" | "lobby"
+    createdAt: bigint("created_at", { mode: "number" }).notNull(),
+    revealed: boolean("revealed").default(false),
+  },
+  (table) => [
+    uniqueIndex("idx_gs_round_type").on(table.roundId, table.type),
+  ]
+);
+
 export const presenceBotSpawns = pgTable(
   "presence_bot_spawns",
   {

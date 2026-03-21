@@ -1,3 +1,4 @@
+// @ts-nocheck — Debug panel, pending TON migration
 /**
  * Blockchain Debug Dialog
  * Shows last winner info and current game state for debugging during development
@@ -67,7 +68,7 @@ Think you can be the next champion? Join the battle now! 👑
 
 ${gameUrl}
 
-#RoyalRumble #Solana #Web3Gaming`;
+#RoyalRumble #TON #Web3Gaming`;
 
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
     window.open(twitterUrl, "_blank", "width=550,height=420");

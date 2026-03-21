@@ -1,7 +1,7 @@
 import { usePrivyWallet } from "../hooks/usePrivyWallet";
 import { useActiveGame } from "../hooks/useActiveGame";
 import { useMemo } from "react";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+const NANO_PER_TON = 1_000_000_000;
 
 export function PotDisplayMobile() {
   const { walletAddress } = usePrivyWallet();
@@ -9,7 +9,7 @@ export function PotDisplayMobile() {
 
   const totalPot = useMemo(() => {
     if (!activeGame?.totalDeposit) return 0;
-    return activeGame.totalDeposit.toNumber();
+    return activeGame.totalDeposit;
   }, [activeGame]);
 
   const playerWinChance = useMemo(() => {
@@ -22,7 +22,7 @@ export function PotDisplayMobile() {
       return wallet?.toString() === walletAddress;
     });
 
-    const playerTotalBet = playerBets.reduce((sum, bet) => sum + bet.amount.toNumber(), 0);
+    const playerTotalBet = playerBets.reduce((sum, bet) => sum + bet.amount, 0);
     return (playerTotalBet / totalPot) * 100;
   }, [activeGame, walletAddress, totalPot]);
 
@@ -60,7 +60,7 @@ export function PotDisplayMobile() {
           <div>
             <div className="text-amber-400 text-xs uppercase">Pot</div>
             <div className="text-amber-200 font-bold text-lg leading-tight">
-              {(totalPot / LAMPORTS_PER_SOL).toFixed(3)} SOL
+              {(totalPot / NANO_PER_TON).toFixed(3)} TON
             </div>
           </div>
         </div>

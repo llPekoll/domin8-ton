@@ -2,7 +2,7 @@
  * Custom Logger System for Royal Rumble
  *
  * Provides category-based logging with environment variable configuration.
- * Supports multiple debug modes: SOLANA, UI, GAME, GENERAL
+ * Supports multiple debug modes: CHAIN, UI, GAME, GENERAL
  *
  * Usage:
  * ```typescript
@@ -14,7 +14,7 @@
  * logger.error('Failed to connect', error);
  *
  * // Category-specific logging
- * logger.solana.debug('Transaction sent:', txSignature);
+ * logger.chain.debug('Transaction sent:', txSignature);
  * logger.ui.debug('Component mounted:', componentName);
  * logger.game.debug('Player spawned:', playerId);
  * ```
@@ -34,7 +34,7 @@ export enum LogLevel {
 
 export enum LogCategory {
   GENERAL = "GENERAL",
-  SOLANA = "SOLANA",
+  CHAIN = "CHAIN",
   UI = "UI",
   GAME = "GAME",
 }
@@ -86,7 +86,7 @@ function parseCategories(categoriesStr?: string): Set<LogCategory> {
   const parts = categoriesStr.split(",").map((s) => s.trim().toUpperCase());
 
   for (const part of parts) {
-    if (part === "SOLANA") categories.add(LogCategory.SOLANA);
+    if (part === "CHAIN") categories.add(LogCategory.CHAIN);
     else if (part === "UI") categories.add(LogCategory.UI);
     else if (part === "GAME") categories.add(LogCategory.GAME);
     else if (part === "GENERAL") categories.add(LogCategory.GENERAL);
@@ -126,7 +126,7 @@ const COLORS = {
   WARN: "#ffaa00",
   INFO: "#4488ff",
   DEBUG: "#888888",
-  SOLANA: "#14F195", // Solana green
+  CHAIN: "#14F195", // Chain green
   UI: "#9945FF", // Purple
   GAME: "#FF6B6B", // Red
   GENERAL: "#666666",
@@ -178,8 +178,8 @@ class CategoryLogger {
    */
   private getCategoryColor(): string {
     switch (this.category) {
-      case LogCategory.SOLANA:
-        return COLORS.SOLANA;
+      case LogCategory.CHAIN:
+        return COLORS.CHAIN;
       case LogCategory.UI:
         return COLORS.UI;
       case LogCategory.GAME:
@@ -303,7 +303,7 @@ class Logger {
   private config: LoggerConfig;
 
   // Category-specific loggers
-  public readonly solana: CategoryLogger;
+  public readonly chain: CategoryLogger;
   public readonly ui: CategoryLogger;
   public readonly game: CategoryLogger;
 
@@ -311,7 +311,7 @@ class Logger {
     this.config = loadConfig();
 
     // Initialize category loggers
-    this.solana = new CategoryLogger(LogCategory.SOLANA, this.config);
+    this.chain = new CategoryLogger(LogCategory.CHAIN, this.config);
     this.ui = new CategoryLogger(LogCategory.UI, this.config);
     this.game = new CategoryLogger(LogCategory.GAME, this.config);
   }

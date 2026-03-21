@@ -80,7 +80,7 @@ export function useGameParticipants() {
       position: Array.isArray(b.position) ? b.position : [b.position[0], b.position[1]],
     }));
 
-    const wallets = activeGame.wallets.map((w) => w.toBase58());
+    const wallets = activeGame.wallets.map((w) => w.toString());
 
     console.log(`[useGameParticipants] Syncing ${bets.length} bets to server (round ${gameRound})`);
 

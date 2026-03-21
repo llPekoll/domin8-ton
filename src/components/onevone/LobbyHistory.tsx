@@ -135,7 +135,7 @@ export function LobbyHistory({ lobbies, maxLobbies = MAX_LOBBIES_DEFAULT }: Lobb
                 {/* Amount & Winner */}
                 <div className="flex items-center gap-2 ml-4">
                   <div className="flex items-center gap-1 bg-gray-800/80 px-2 py-1 rounded-lg">
-                    <img src="/sol-logo.svg" alt="SOL" className="w-3 h-3" />
+                    <img src="/ton-logo.svg" alt="TON" className="w-3 h-3" />
                     <span className="text-white font-bold text-sm">
                       {formatAmount(lobby.amount)}
                     </span>

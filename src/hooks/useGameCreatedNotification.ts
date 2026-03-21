@@ -25,7 +25,7 @@ export function useGameCreatedNotification(currentRoundState: ActiveGameState | 
   );
 
   // Get player data for the first bettor's display name via socket
-  const firstBettorWallet = currentRoundState?.wallets?.[0]?.toBase58() || null;
+  const firstBettorWallet = currentRoundState?.wallets?.[0]?.toString() || null;
   const [firstBettorPlayer, setFirstBettorPlayer] = useState<any>(null);
   useEffect(() => {
     if (!socket || !firstBettorWallet) {
@@ -59,9 +59,9 @@ export function useGameCreatedNotification(currentRoundState: ActiveGameState | 
       console.log(`[useGameCreatedNotification] Game started! Status transition WAITING -> OPEN for round ${currentRoundId}`);
 
       // Get game data for webhook
-      const startTimestamp = currentRoundState.startDate?.toNumber() || Math.floor(Date.now() / 1000);
-      const endTimestamp = currentRoundState.endDate?.toNumber() || startTimestamp + 60;
-      const totalPot = currentRoundState.totalDeposit?.toNumber() || 0;
+      const startTimestamp = currentRoundState.startDate || Math.floor(Date.now() / 1000);
+      const endTimestamp = currentRoundState.endDate || startTimestamp + 60;
+      const totalPot = currentRoundState.totalDeposit || 0;
       const mapId = typeof currentRoundState.map === "number" ? currentRoundState.map : (currentRoundState.map as any)?.id || 0;
 
       // Get first bettor info (the game creator)

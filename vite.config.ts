@@ -24,7 +24,7 @@ export default defineConfig({
       manifest: {
         name: "Domin8",
         short_name: "Domin8",
-        description: "Battle royale betting game on Solana",
+        description: "Battle royale betting game on TON",
         theme_color: "#000000",
         background_color: "#000000",
         display: "standalone",

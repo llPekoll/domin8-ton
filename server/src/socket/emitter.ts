@@ -53,4 +53,6 @@ export function emitGameStateUpdate(gameState: any) {
 export function emitLobbyUpdate(lobby: any) {
   if (!io) return;
   io.emit("lobby-update", lobby);
+  io.emit("lobby-updated", lobby); // triggers open lobby list refresh
+  io.emit("lobby-state-updated", lobby); // triggers active lobby state update in dialog
 }

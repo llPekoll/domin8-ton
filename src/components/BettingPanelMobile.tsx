@@ -96,7 +96,7 @@ const BettingPanelMobile = memo(function BettingPanelMobile({
 
     const amount = parseFloat(betAmount);
     if (isNaN(amount) || amount < MIN_BET_AMOUNT || amount > MAX_BET_AMOUNT) {
-      toast.error(`Bet amount must be between ${MIN_BET_AMOUNT} and ${MAX_BET_AMOUNT} SOL`);
+      toast.error(`Bet amount must be between ${MIN_BET_AMOUNT} and ${MAX_BET_AMOUNT} TON`);
       return;
     }
 
@@ -233,11 +233,11 @@ const BettingPanelMobile = memo(function BettingPanelMobile({
       <div className="shrink-0 bg-linear-to-t from-amber-950 to-amber-900/90 border-t border-amber-600/30 p-3 space-y-2">
         {/* Row 1: Input + Quick bet buttons */}
         <div className="flex items-center gap-2">
-          {/* SOL Input */}
+          {/* TON Input */}
           <div className="relative flex-1">
             <img
-              src="/sol-logo.svg"
-              alt="SOL"
+              src="/ton-logo.svg"
+              alt="TON"
               className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4"
               style={{
                 filter:

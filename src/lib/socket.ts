@@ -78,12 +78,13 @@ export function useSocket() {
 export function socketRequest<T = any>(
   socket: Socket,
   event: string,
-  data?: any
+  data?: any,
+  timeoutMs: number = 15_000
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error(`Socket request "${event}" timed out after 15s`));
-    }, 15_000);
+      reject(new Error(`Socket request "${event}" timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
 
     socket.emit(event, data, (response: any) => {
       clearTimeout(timeout);

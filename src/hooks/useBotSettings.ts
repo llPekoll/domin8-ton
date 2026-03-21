@@ -7,19 +7,10 @@
 import { useCallback, useState, useEffect } from "react";
 import { useSocket, socketRequest } from "../lib/socket";
 import { usePrivyWallet } from "./usePrivyWallet";
-import { useWallets } from "@privy-io/react-auth/solana";
-import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { toast } from "sonner";
 import { logger } from "../lib/logger";
-import { getSharedConnection } from "~/lib/sharedConnection";
-import bs58 from "bs58";
 
-// Treasury wallet for budget refills (from env)
-const BOT_TREASURY_WALLET = new PublicKey(
-  import.meta.env.VITE_BOT_TREASURY_WALLET || "11111111111111111111111111111111"
-);
-
-const SOLANA_NETWORK = import.meta.env.VITE_SOLANA_NETWORK || "devnet";
+const NANO_PER_TON = 1_000_000_000;
 
 export interface BotConfiguration {
   // Rookie settings
@@ -47,7 +38,7 @@ export interface BotConfiguration {
 
 export function useBotSettings() {
   const { connected, publicKey, walletAddress, solBalance } = usePrivyWallet();
-  const { wallets } = useWallets();
+  const wallets: any[] = []; // TODO: TON migration - bot signing needs rework
   const { socket } = useSocket();
 
   // State for queries
@@ -181,98 +172,46 @@ export function useBotSettings() {
   );
 
   /**
-   * Refill bot budget by sending SOL to treasury
+   * Refill bot budget by sending TON to treasury
    */
   const refillBudget = useCallback(
     async (
-      amountSOL: number
+      amountTON: number
     ): Promise<{ success: boolean; signature?: string; error?: string }> => {
       if (!connected || !publicKey || !walletAddress || !socket) {
         return { success: false, error: "Wallet not connected" };
       }
 
-      const amountLamports = Math.floor(amountSOL * LAMPORTS_PER_SOL);
+      const amountNanotons = Math.floor(amountTON * NANO_PER_TON);
 
-      if (amountLamports < 10_000_000) {
-        return { success: false, error: "Minimum refill is 0.01 SOL" };
+      if (amountNanotons < 10_000_000) {
+        return { success: false, error: "Minimum refill is 0.01 TON" };
       }
 
       // Check balance
-      if (solBalance !== null && solBalance < amountSOL + 0.001) {
+      if (solBalance !== null && solBalance < amountTON + 0.001) {
         return {
           success: false,
-          error: `Insufficient balance. Need ${amountSOL + 0.001} SOL, have ${solBalance.toFixed(3)} SOL`,
+          error: `Insufficient balance. Need ${amountTON + 0.001} TON, have ${solBalance.toFixed(3)} TON`,
         };
       }
 
       try {
-        logger.ui.debug(`[useBotSettings] Refilling budget with ${amountSOL} SOL`);
+        logger.ui.debug(`[useBotSettings] Refilling budget with ${amountTON} TON`);
 
-        // Get Privy wallet
-        const privyWallet = wallets.find((w) => w.address === walletAddress);
-        if (!privyWallet) {
-          return { success: false, error: "Privy wallet not found" };
-        }
+        // TODO: Implement TON transfer
+        // Build and send a TON transaction to the treasury wallet
+        // Then capture the transaction signature/hash
+        const signature = ""; // placeholder
 
-        // Build transfer transaction
-        const connection = getSharedConnection();
-        const { blockhash, lastValidBlockHeight } =
-          await connection.getLatestBlockhash("confirmed");
-
-        const transaction = new Transaction().add(
-          SystemProgram.transfer({
-            fromPubkey: publicKey,
-            toPubkey: BOT_TREASURY_WALLET,
-            lamports: amountLamports,
-          })
-        );
-
-        transaction.recentBlockhash = blockhash;
-        transaction.lastValidBlockHeight = lastValidBlockHeight;
-        transaction.feePayer = publicKey;
-
-        // Sign and send via Privy
-        const chainId = `solana:${SOLANA_NETWORK}` as `${string}:${string}`;
-        const serialized = transaction.serialize({
-          requireAllSignatures: false,
-          verifySignatures: false,
-        });
-
-        const result = await privyWallet.signAndSendAllTransactions([
-          {
-            chain: chainId,
-            transaction: serialized,
-          },
-        ]);
-
-        if (!result || result.length === 0 || !result[0].signature) {
-          return { success: false, error: "Transaction failed - no signature returned" };
-        }
-
-        const signature = bs58.encode(result[0].signature);
-        logger.ui.debug(`[useBotSettings] Refill transaction sent: ${signature}`);
-
-        // Wait for confirmation
-        const confirmation = await connection.confirmTransaction(
-          {
-            signature,
-            blockhash,
-            lastValidBlockHeight,
-          },
-          "confirmed"
-        );
-
-        if (confirmation.value.err) {
-          return {
-            success: false,
-            error: `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
-          };
+        if (!signature) {
+          return { success: false, error: "TON transfer not yet implemented" };
         }
 
         // Record refill in database via socket
         const refillRes = await socketRequest(socket, "refill-budget", {
           walletAddress,
-          additionalBudget: amountLamports,
+          additionalBudget: amountNanotons,
           transactionSignature: signature,
         });
         if (!refillRes.success) {
@@ -284,7 +223,7 @@ export function useBotSettings() {
           if (r.success) setConfig(r.data ?? null);
         });
 
-        toast.success(`Budget refilled with ${amountSOL} SOL`);
+        toast.success(`Budget refilled with ${amountTON} TON`);
         return { success: true, signature };
       } catch (error) {
         logger.ui.error("[useBotSettings] Refill failed:", error);
@@ -304,9 +243,9 @@ export function useBotSettings() {
     limit: config?.budgetLimit ?? 0,
     spent: config?.currentSpent ?? 0,
     remaining: (config?.budgetLimit ?? 0) - (config?.currentSpent ?? 0),
-    limitSOL: (config?.budgetLimit ?? 0) / LAMPORTS_PER_SOL,
-    spentSOL: (config?.currentSpent ?? 0) / LAMPORTS_PER_SOL,
-    remainingSOL: ((config?.budgetLimit ?? 0) - (config?.currentSpent ?? 0)) / LAMPORTS_PER_SOL,
+    limitSOL: (config?.budgetLimit ?? 0) / NANO_PER_TON,
+    spentSOL: (config?.currentSpent ?? 0) / NANO_PER_TON,
+    remainingSOL: ((config?.budgetLimit ?? 0) - (config?.currentSpent ?? 0)) / NANO_PER_TON,
     percentUsed:
       config?.budgetLimit && config.budgetLimit > 0
         ? ((config.currentSpent ?? 0) / config.budgetLimit) * 100

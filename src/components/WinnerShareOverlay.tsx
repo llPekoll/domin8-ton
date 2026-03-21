@@ -59,14 +59,14 @@ Think you can beat me? Join the battle now! 👑
 
 ${gameUrl}
 
-#Domin8 #Solana #Web3Gaming`
+#Domin8 #TON #Web3Gaming`
       : `🏆 ${winnerData.displayName} just won ${winnerData.prize} SOL in Domin8!
 
 Think you can be the next champion? Join the battle now! 👑
 
 ${gameUrl}
 
-#Domin8 #Solana #Web3Gaming`;
+#Domin8 #TON #Web3Gaming`;
 
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
     window.open(twitterUrl, "_blank", "width=550,height=420");

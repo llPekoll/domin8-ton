@@ -1,13 +1,10 @@
 /**
- * Hook for accessing game state from Solana blockchain
+ * Hook for accessing game state
  *
- * NOW USES: Direct blockchain subscription via active_game PDA
- * BEFORE: Convex polling (5 second delay)
- * BENEFIT: <1 second updates vs 5 seconds
+ * Uses Socket.io backend updates (not direct blockchain reads).
  */
 import { useActiveGame } from "./useActiveGame";
 import { useMemo } from "react";
-import { logger } from "../lib/logger";
 import { GAME_STATUS } from "../game/constants";
 
 export interface BetEntry {
@@ -24,7 +21,7 @@ export interface GameState {
   bets: BetEntry[];
   initialPot: number;
   winner: string | null;
-  prizeSent: boolean; // Computed: true if winner exists and winner_prize === 0
+  prizeSent: boolean;
   gameRoundPda: string;
   vaultPda: string;
 }
@@ -41,71 +38,60 @@ export interface GameConfig {
 }
 
 export function useGameState() {
-  // Subscribe directly to active_game PDA on Solana blockchain
-  const { activeGame, isLoading, activeGamePDA } = useActiveGame();
+  const { activeGame, isLoading } = useActiveGame();
 
-  const loading = isLoading;
-  const error = null;
-
-  // Helper to convert blockchain status to expected format
-  // Smart contract constants.rs: OPEN=0, CLOSED=1, WAITING=2
   const formatStatus = (status: number): GameState["status"] => {
-    if (status === GAME_STATUS.OPEN) return "Open";       // 0 - betting active
-    if (status === GAME_STATUS.CLOSED) return "Closed";   // 1 - game ended
-    if (status === GAME_STATUS.WAITING) return "Waiting"; // 2 - no bets yet
-    return "Waiting"; // Default to waiting
+    if (status === GAME_STATUS.OPEN) return "Open";
+    if (status === GAME_STATUS.CLOSED) return "Closed";
+    return "Waiting";
   };
 
-  // Transform blockchain active_game to GameState interface
   const gameState: GameState | null = useMemo(() => {
     if (!activeGame) return null;
 
-    return {
-      roundId: activeGame.gameRound.toNumber(),
-      status: formatStatus(activeGame.status),
-      startTimestamp: activeGame.startDate.toNumber(),
-      endTimestamp: activeGame.endDate.toNumber(),
-      bets: activeGame.bets?.map((bet: any, index: number) => ({
-        wallet: activeGame.wallets[bet.walletIndex]?.toString() || `Player ${index + 1}`,
-        betAmount: bet.amount.toNumber() / 1_000_000_000, // Convert lamports to SOL
-        timestamp: activeGame.startDate.toNumber(), // Approximate
-      })) || [],
-      initialPot: activeGame.totalDeposit.toNumber() / 1_000_000_000, // Convert lamports to SOL
-      winner: activeGame.winner?.toString() || '',
-      gameRoundPda: activeGamePDA?.toString() || "Unknown",
-      // Prize is sent if winner exists and winner_prize is 0 (send_prize_winner sets it to 0)
-      prizeSent: activeGame.winner !== null && activeGame.winnerPrize.toNumber() === 0,
-      vaultPda: "Derived from seeds",
-    };
-  }, [activeGame, activeGamePDA]);
+    const toNum = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
-  // Mock game config (these are program constants)
+    return {
+      roundId: toNum(activeGame.gameRound ?? activeGame.roundId),
+      status: formatStatus(toNum(activeGame.status)),
+      startTimestamp: toNum(activeGame.startDate ?? activeGame.startTimestamp),
+      endTimestamp: toNum(activeGame.endDate ?? activeGame.endTimestamp),
+      bets:
+        activeGame.bets?.map((bet: any, index: number) => ({
+          wallet:
+            activeGame.wallets?.[bet.walletIndex]?.toString() ||
+            `Player ${index + 1}`,
+          betAmount: toNum(bet.amount) / 1_000_000_000, // nanotons → TON
+          timestamp: toNum(activeGame.startDate ?? activeGame.startTimestamp),
+        })) || [],
+      initialPot: toNum(activeGame.totalDeposit ?? activeGame.totalPot) / 1_000_000_000,
+      winner: activeGame.winner?.toString() || null,
+      prizeSent: activeGame.prizeSent ?? false,
+      gameRoundPda: "ton-contract",
+      vaultPda: "ton-contract",
+    };
+  }, [activeGame]);
+
   const gameConfig: GameConfig = useMemo(
     () => ({
       authority: "Backend Wallet",
       treasury: "Treasury Wallet",
-      houseFeeBasisPoints: 500, // 5%
-      minBetLamports: 0.01, // 0.01 SOL
-      vrfFeeLamports: 0.001, // 0.001 SOL
-      vrfNetworkState: "Devnet",
-      vrfTreasury: "VRF Treasury",
-      gameLocked: activeGame?.status === 1 || false, // Locked when GAME_STATUS_CLOSED = 1
+      houseFeeBasisPoints: 500,
+      minBetLamports: 0.01,
+      vrfFeeLamports: 0,
+      vrfNetworkState: "TON Testnet",
+      vrfTreasury: "N/A",
+      gameLocked: activeGame?.status === 1 || false,
     }),
     [activeGame]
   );
 
-  const vaultBalance = -1; // Vault balance not tracked yet
-
   return {
     gameState,
     gameConfig,
-    vaultBalance,
-    loading,
-    error,
-    refresh: () => {
-      logger.solana.debug(
-        "[DOMIN8] Direct blockchain subscription - no manual refresh needed (updates in <1s)"
-      );
-    },
+    vaultBalance: -1,
+    loading: isLoading,
+    error: null,
+    refresh: () => {},
   };
 }

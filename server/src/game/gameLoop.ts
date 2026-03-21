@@ -3,7 +3,7 @@
  * Uses setTimeout chains instead of setInterval
  */
 import type { Server } from "socket.io";
-import { SolanaClient } from "../lib/solana.js";
+import { TonGameClient } from "../lib/ton.js";
 import { GAME_STATUS, GAME_TIMING } from "../lib/types.js";
 import { config } from "../config.js";
 import {
@@ -29,8 +29,22 @@ export function setIO(socketIO: Server) {
   io = socketIO;
 }
 
-function getSolanaClient(): SolanaClient {
-  return new SolanaClient(config.solanaRpcEndpoint, config.crankAuthorityPrivateKey);
+let tonClient: TonGameClient | null = null;
+
+function getClient(): TonGameClient {
+  if (!tonClient) {
+    const endpoint = config.tonNetwork === "mainnet"
+      ? "https://toncenter.com/api/v2/jsonRPC"
+      : "https://testnet.toncenter.com/api/v2/jsonRPC";
+
+    tonClient = new TonGameClient(
+      endpoint,
+      config.tonMnemonic,
+      config.tonMasterAddress,
+      config.tonCenterApiKey
+    );
+  }
+  return tonClient;
 }
 
 /**
@@ -83,15 +97,22 @@ async function syncActiveGame(activeGame: any) {
     }
 
     // Emit game state update
+    const statusLabel = activeGame.status === GAME_STATUS.OPEN ? "open"
+      : activeGame.status === GAME_STATUS.CLOSED ? "finished"
+      : "waiting";
+
     emitGameStateUpdate({
       roundId: activeGame.gameRound,
-      status: activeGame.status === GAME_STATUS.CLOSED ? "finished" : "waiting",
+      status: statusLabel,
       startTimestamp: activeGame.startDate,
       endTimestamp: activeGame.endDate,
       mapId: activeGame.map,
       betCount: activeGame.bets?.length || 0,
       totalPot: activeGame.totalDeposit,
+      totalDeposit: activeGame.totalDeposit,
       winner: activeGame.winner,
+      bets: activeGame.bets,
+      wallets: activeGame.wallets,
     });
   } catch (error) {
     console.error("[GameLoop] Error syncing active game:", error);
@@ -105,11 +126,11 @@ async function gameLoopTick() {
   console.log("\n[GameLoop] Running game state check...");
 
   try {
-    const solanaClient = getSolanaClient();
+    const client = getClient();
     const now = Math.floor(Date.now() / 1000);
 
-    const activeGame = await solanaClient.getActiveGame();
-    const gameConfig = await solanaClient.getGameConfig();
+    const activeGame = await client.getActiveGame();
+    const gameConfig = await client.getGameConfig();
 
     if (!gameConfig) {
       console.log("[GameLoop] Config not found");
@@ -147,16 +168,32 @@ async function gameLoopTick() {
     if (activeGame.status === GAME_STATUS.OPEN) {
       const remaining = Math.max(0, activeGame.endDate - now);
 
-      // Past end time - force end_game
+      // Check if jobs already scheduled (or recently failed)
+      const endGameScheduled = await isActionScheduled(activeGame.gameRound, "end_game");
+
+      // Past end time - force end_game (but only if not already scheduled/failed)
       if (remaining === 0) {
+        if (endGameScheduled) {
+          const stuckMinutes = (now - activeGame.endDate) / 60;
+          if (stuckMinutes > 30) {
+            // Stuck too long — give up, just log once per 10 min
+            if (Math.round(stuckMinutes) % 10 === 0) {
+              console.log(`[GameLoop] Game ${activeGame.gameRound} stuck for ${Math.round(stuckMinutes)}min — secret lost, game unrecoverable. Needs manual intervention.`);
+            }
+          } else if (stuckMinutes > 5) {
+            console.log(`[GameLoop] Game ${activeGame.gameRound} stuck for ${Math.round(stuckMinutes)}min — retrying end_game with DB recovery`);
+            await executeEndGame(activeGame.gameRound);
+          } else {
+            console.log(`[GameLoop] Game ${activeGame.gameRound} past end time but end_game already handled`);
+          }
+          scheduleNextTick();
+          return;
+        }
         console.log(`[GameLoop] Game ${activeGame.gameRound} past end time - forcing end_game`);
         await executeEndGame(activeGame.gameRound);
         scheduleNextTick();
         return;
       }
-
-      // Check if jobs already scheduled
-      const endGameScheduled = await isActionScheduled(activeGame.gameRound, "end_game");
 
       if (endGameScheduled) {
         console.log(`[GameLoop] Jobs already scheduled for round ${activeGame.gameRound}, ${remaining}s remaining`);

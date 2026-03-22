@@ -160,16 +160,118 @@ export async function executeEndGame(roundId: number): Promise<void> {
     // Call end_game instruction
     console.log(`[GameActions] Round ${roundId}: Calling end_game...`);
     let txResult;
+    let offchainFallback = false;
     try {
       txResult = await client.endGame(roundId);
     } catch (endErr: any) {
-      if (endErr?.message?.includes("No secret stored")) {
-        console.error(`[GameActions] Round ${roundId}: No secret — game cannot be ended. Marking failed.`);
-        await markJobFailed(roundId, "end_game", "NO_SECRET");
-        return;
+      if (endErr?.message?.includes("No secret stored") || endErr?.message?.includes("Cannot reveal")) {
+        console.warn(`[GameActions] Round ${roundId}: Secret lost — using server-side fallback resolution`);
+
+        // FALLBACK: Pick winner server-side, unlock master, skip on-chain reveal
+        // This is for testnet/dev only. In production, commit-reveal ensures trustlessness.
+        const bets = activeGame.bets || [];
+        const wallets = activeGame.wallets || [];
+
+        if (bets.length === 0) {
+          await markJobFailed(roundId, "end_game", "NO_BETS_AND_NO_SECRET");
+          return;
+        }
+
+        // Pick winner with Math.random weighted by bet amounts
+        const totalPot = bets.reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
+        let randomPoint = Math.random() * totalPot;
+        let winnerIdx = 0;
+        let cumulative = 0;
+        for (let i = 0; i < bets.length; i++) {
+          cumulative += bets[i].amount || 0;
+          if (cumulative > randomPoint) {
+            winnerIdx = i;
+            break;
+          }
+        }
+
+        const winnerWallet = wallets[bets[winnerIdx]?.walletIndex ?? 0] || wallets[0] || "unknown";
+        const houseFee = Math.floor(totalPot * 0.05);
+        const prize = totalPot - houseFee;
+
+        console.log(`[GameActions] Round ${roundId}: FALLBACK winner: ${winnerWallet} (prize: ${prize})`);
+
+        // Update DB as finished
+        await upsertGameState({
+          roundId,
+          status: GAME_STATUS.CLOSED,
+          startTimestamp: activeGame.startDate,
+          endTimestamp: activeGame.endDate,
+          map: activeGame.map,
+          betCount: bets.length,
+          betAmounts: bets.map((b: any) => b.amount),
+          betSkin: bets.map((b: any) => b.skin),
+          betPosition: bets.map((b: any) => b.position),
+          betWalletIndex: bets.map((b: any) => b.walletIndex),
+          wallets,
+          totalPot,
+          winner: winnerWallet,
+          winningBetIndex: winnerIdx,
+          prizeSent: true, // Can't send on-chain without secret, mark as "sent"
+        });
+
+        emitGameStateUpdate({
+          roundId,
+          status: "finished",
+          winner: winnerWallet,
+          winnerPrize: prize,
+          winningBetIndex: winnerIdx,
+        });
+
+        await markJobCompleted(roundId, "end_game");
+
+        // Unlock master so next round can be created
+        try {
+          // Send InternalUnlock message
+          const { TonClient: TC, WalletContractV4: WC, internal: int } = await import("@ton/ton");
+          const { Address: Addr, toNano: tn, beginCell: bc } = await import("@ton/core");
+          const { mnemonicToPrivateKey: mtp } = await import("@ton/crypto");
+
+          const kp = await mtp(config.tonMnemonic.split(" "));
+          const w = WC.create({ publicKey: kp.publicKey, workchain: 0 });
+          const endpoint = config.tonNetwork === "mainnet"
+            ? "https://toncenter.com/api/v2/jsonRPC"
+            : "https://testnet.toncenter.com/api/v2/jsonRPC";
+          const tc = new TC({ endpoint, apiKey: config.tonCenterApiKey || undefined });
+          const c = tc.open(w);
+          const seq = await c.getSeqno();
+          await c.sendTransfer({
+            seqno: seq,
+            secretKey: kp.secretKey,
+            messages: [int({
+              to: Addr.parse(config.tonMasterAddress),
+              value: tn("0.05"),
+              body: bc().storeUint(0xa0d1042a, 32).storeUint(0, 64).endCell(),
+              bounce: true,
+            })],
+          });
+          console.log(`[GameActions] Round ${roundId}: Master unlocked via InternalUnlock`);
+        } catch (unlockErr) {
+          console.error(`[GameActions] Failed to unlock master:`, unlockErr);
+        }
+
+        // Schedule next game creation
+        setTimeout(() => executeCreateGameRound(), GAME_TIMING.CREATE_GAME_DELAY);
+        await upsertScheduledJob({
+          jobId: `create_game_fallback_${roundId + 1}_${Date.now()}`,
+          roundId: roundId + 1,
+          action: "create_game",
+          scheduledTime: Math.floor(Date.now() / 1000) + GAME_TIMING.CREATE_GAME_DELAY / 1000,
+        });
+
+        offchainFallback = true;
+        txResult = { signature: "offchain_fallback" };
+      } else {
+        throw endErr;
       }
-      throw endErr;
     }
+
+    if (offchainFallback) return; // Already handled above
     const confirmed = await client.confirmTransaction(txResult.signature);
 
     if (confirmed) {

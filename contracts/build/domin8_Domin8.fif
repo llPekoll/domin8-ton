@@ -222,9 +222,12 @@ PROGRAM{
   }>
   $Domin8$init$_load PROCINLINE:<{
     LDMSGADDR
-    SWAP
+    257 PUSHINT
+    LDIX
+    -ROT
   }>
   $Domin8$_contract_init PROCINLINE:<{
+    DROP
     DUP
     500 PUSHINT
     1000000 PUSHINT
@@ -245,8 +248,9 @@ PROGRAM{
       1 9 BLKDROP2
     }>ELSE<{
       $Domin8$init$_load INLINECALLDICT
-      SWAP
+      s0 s2 XCHG
       ENDS
+      SWAP
       $Domin8$_contract_init INLINECALLDICT
     }>
   }>

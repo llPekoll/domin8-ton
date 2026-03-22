@@ -81,10 +81,10 @@ builder $Domin8Game$init$_store(builder build_0, (slice, int) v) inline;
 builder $Domin8Lobby$init$_store(builder build_0, (slice, int) v) inline;
 
 ;; $Domin8$init$_load
-(slice, ((slice))) $Domin8$init$_load(slice sc_0) inline;
+(slice, ((slice, int))) $Domin8$init$_load(slice sc_0) inline;
 
 ;; $Domin8$_contract_init
-(slice, slice, int, int, int, int, int, int, int) $Domin8$_contract_init(slice $owner) impure inline;
+(slice, slice, int, int, int, int, int, int, int) $Domin8$_contract_init(slice $owner, int $version) impure inline;
 
 ;; $Domin8$_contract_load
 (slice, slice, int, int, int, int, int, int, int) $Domin8$_contract_load() impure inline;
@@ -687,9 +687,10 @@ builder $Domin8$_store(builder build_0, (slice, slice, int, int, int, int, int, 
     return (sc_0, (v'owner, v'treasury, v'houseFee, v'minBet, v'maxBet, v'roundTime, v'currentRound, v'lobbyCount, v'locked));
 }
 
-(slice, ((slice))) $Domin8$init$_load(slice sc_0) inline {
+(slice, ((slice, int))) $Domin8$init$_load(slice sc_0) inline {
     var v'owner = sc_0~load_msg_addr();
-    return (sc_0, (v'owner));
+    var v'version = sc_0~load_int(257);
+    return (sc_0, (v'owner, v'version));
 }
 
 (slice, slice, int, int, int, int, int, int, int) $Domin8$_contract_load() impure inline {
@@ -699,9 +700,9 @@ builder $Domin8$_store(builder build_0, (slice, slice, int, int, int, int, int, 
         return $sc~$Domin8$_load();
     }
     else {
-        (slice $owner) = $sc~$Domin8$init$_load();
+        (slice $owner, int $version) = $sc~$Domin8$init$_load();
         $sc.end_parse();
-        return $Domin8$_contract_init($owner);
+        return $Domin8$_contract_init($owner, $version);
     }
 }
 
@@ -716,7 +717,7 @@ builder $Domin8$_store(builder build_0, (slice, slice, int, int, int, int, int, 
 ;; Contract Domin8 functions
 ;;
 
-(slice, slice, int, int, int, int, int, int, int) $Domin8$_contract_init(slice $owner) impure inline {
+(slice, slice, int, int, int, int, int, int, int) $Domin8$_contract_init(slice $owner, int $version) impure inline {
     var (($self'owner, $self'treasury, $self'houseFee, $self'minBet, $self'maxBet, $self'roundTime, $self'currentRound, $self'lobbyCount, $self'locked)) = (null(), null(), null(), null(), null(), null(), null(), null(), null());
     $self'owner = $owner;
     $self'treasury = $owner;

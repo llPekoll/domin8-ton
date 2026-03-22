@@ -1,6 +1,6 @@
 # Tact compilation report
 Contract: Domin8
-BoC Size: 6313 bytes
+BoC Size: 6358 bytes
 
 ## Structures (Structs and Messages)
 Total structures: 37

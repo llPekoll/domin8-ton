@@ -604,7 +604,7 @@ contract Domin8 with Deployable, Ownable {
     lobbyCount: Int as uint64;
     locked: Bool;
 
-    init(owner: Address) {
+    init(owner: Address, version: Int) {
         self.owner = owner;
         self.treasury = owner;
         self.houseFee = 500;

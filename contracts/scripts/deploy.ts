@@ -56,7 +56,9 @@ async function main() {
     process.exit(1);
   }
 
-  const master = client.open(await Domin8.fromInit(wallet.address));
+  // Version param — increment to deploy a fresh master contract
+  const MASTER_VERSION = 2n;
+  const master = client.open(await Domin8.fromInit(wallet.address, MASTER_VERSION));
   console.log(`Master: ${master.address.toString({ testOnly: network === "testnet" })}`);
 
   // Check if already deployed

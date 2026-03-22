@@ -586,9 +586,9 @@ export function OneVOnePage() {
               <div className="flex flex-col md:flex-row md:items-center gap-3">
                 {/* Title Row */}
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg md:text-xl font-bold text-amber-100">ALL GAMES</h2>
+                  <h2 className="text-lg md:text-xl font-bold text-amber-100">OPEN GAMES</h2>
                   <span className="text-amber-400 font-mono text-sm">
-                    {filteredOpenLobbies.length + filteredCompletedLobbies.length}
+                    {filteredOpenLobbies.length}
                   </span>
                   <span className="hidden md:flex px-3 py-1 bg-amber-900/30 border border-amber-700/50 rounded-full text-amber-300 text-xs items-center gap-1">
                     <img src="/ton-logo.svg" alt="TON" className="w-3 h-3" />
@@ -648,7 +648,7 @@ export function OneVOnePage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
                 {/* My Open Lobbies First */}
                 {filteredOpenLobbies
                   .filter((l) => l.playerA === publicKey.toString() && l.status === 0)
@@ -894,7 +894,13 @@ export function OneVOnePage() {
                     </div>
                   ))}
 
-                {/* Completed Lobbies */}
+                {/* Completed Lobbies Header */}
+                {filteredCompletedLobbies.length > 0 && (
+                  <div className="flex items-center gap-3 pt-4 mt-2 border-t border-gray-700/50">
+                    <h2 className="text-lg md:text-xl font-bold text-amber-100">RECENT BATTLES</h2>
+                    <span className="text-amber-400 font-mono text-sm">{filteredCompletedLobbies.length}</span>
+                  </div>
+                )}
                 {filteredCompletedLobbies.slice(0, 20).map((lobby) => {
                   const isPlayerAWinner = lobby.winner === lobby.playerA;
                   const isPlayerBWinner = lobby.winner === lobby.playerB;
@@ -1119,10 +1125,9 @@ export function OneVOnePage() {
               {/* Waiting Games (Open Lobbies) */}
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 md:gap-3">
-                  <h2 className="text-lg md:text-xl font-bold text-amber-100">ALL GAMES</h2>
+                  <h2 className="text-lg md:text-xl font-bold text-amber-100">OPEN GAMES</h2>
                   <span className="text-amber-400 font-mono text-sm">
-                    {openLobbies.filter((l) => l.status === 0 && !l.isPrivate).length +
-                      completedLobbies.length}
+                    {openLobbies.filter((l) => l.status === 0 && !l.isPrivate).length}
                   </span>
                   <span className="hidden md:flex px-3 py-1 bg-amber-900/30 border border-amber-700/50 rounded-full text-amber-300 text-xs items-center gap-1">
                     <img src="/ton-logo.svg" alt="TON" className="w-3 h-3" />
@@ -1130,7 +1135,7 @@ export function OneVOnePage() {
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-700/50 scrollbar-track-transparent">
                   {/* Open Lobbies */}
                   {openLobbies
                     .filter((l) => l.status === 0 && !l.isPrivate)
@@ -1222,7 +1227,13 @@ export function OneVOnePage() {
                       );
                     })}
 
-                  {/* Completed Lobbies */}
+                  {/* Completed Lobbies Header */}
+                  {completedLobbies.length > 0 && (
+                    <div className="flex items-center gap-3 pt-4 mt-2 border-t border-gray-700/50">
+                      <h2 className="text-lg md:text-xl font-bold text-amber-100">RECENT BATTLES</h2>
+                      <span className="text-amber-400 font-mono text-sm">{completedLobbies.length}</span>
+                    </div>
+                  )}
                   {completedLobbies.slice(0, 20).map((lobby) => {
                     const isPlayerAWinner = lobby.winner === lobby.playerA;
                     const isPlayerBWinner = lobby.winner === lobby.playerB;

@@ -77,9 +77,9 @@ export function useActiveGame() {
     (game: any): ActiveGameState | null => {
       if (!game) return null;
 
-      // Fallback mapId to 1 if 0 or missing (maps are 1 and 2)
+      // Fallback mapId to 1 if 0 or missing
       const rawMapId = game.map ?? game.mapId ?? 0;
-      const mapId = rawMapId > 0 ? rawMapId : (Math.random() < 0.5 ? 1 : 2);
+      const mapId = rawMapId > 0 ? rawMapId : 1;
       const mapData = getMapById(mapId) || null;
 
       return {
@@ -146,8 +146,7 @@ export function useActiveGame() {
 
     const handleParticipantsUpdate = (data: any) => {
       logger.chain.debug("[useActiveGame] Participants update:", data);
-      // Participants are synced separately, update activeGame bets if provided
-      if (data?.bets && activeGame) {
+      if (data?.bets) {
         setActiveGame((prev) =>
           prev ? { ...prev, bets: data.bets, betCount: data.bets.length } : prev
         );
@@ -161,7 +160,7 @@ export function useActiveGame() {
       socket.off("game-state-update", handleGameStateUpdate);
       socket.off("participants-update", handleParticipantsUpdate);
     };
-  }, [socket, enrichWithMap, activeGame]);
+  }, [socket, enrichWithMap]); // NO activeGame dependency — prevents infinite loop
 
   return {
     activeGame,

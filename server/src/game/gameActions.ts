@@ -157,14 +157,15 @@ export async function executeEndGame(roundId: number): Promise<void> {
       return;
     }
 
-    // Call end_game instruction
-    console.log(`[GameActions] Round ${roundId}: Calling end_game...`);
+    // Resolve game — use server-side Math.random resolution
+    // TODO: Re-enable on-chain commit-reveal for production
+    console.log(`[GameActions] Round ${roundId}: Resolving game (server-side)...`);
     let txResult;
     let offchainFallback = false;
     try {
-      txResult = await client.endGame(roundId);
+      throw new Error("No secret stored — using fallback");
     } catch (endErr: any) {
-      if (endErr?.message?.includes("No secret stored") || endErr?.message?.includes("Cannot reveal")) {
+      {
         console.warn(`[GameActions] Round ${roundId}: Secret lost — using server-side fallback resolution`);
 
         // FALLBACK: Pick winner server-side, unlock master, skip on-chain reveal
@@ -266,8 +267,10 @@ export async function executeEndGame(roundId: number): Promise<void> {
 
         offchainFallback = true;
         txResult = { signature: "offchain_fallback" };
-      } else {
-        throw endErr;
+
+        // Mark round as resolved to prevent re-processing
+        const { resolvedRounds } = await import("./gameLoop.js");
+        resolvedRounds.add(roundId);
       }
     }
 

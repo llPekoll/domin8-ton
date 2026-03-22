@@ -25,6 +25,9 @@ import { emitGameStateUpdate, emitParticipantsUpdate } from "../socket/emitter.j
 
 let io: Server;
 
+// Track rounds resolved via fallback to avoid re-processing
+export const resolvedRounds = new Set<number>();
+
 export function setIO(socketIO: Server) {
   io = socketIO;
 }
@@ -129,8 +132,19 @@ async function gameLoopTick() {
     const client = getClient();
     const now = Math.floor(Date.now() / 1000);
 
-    const activeGame = await client.getActiveGame();
+    console.log("[GameLoop] Fetching active game...");
+    let activeGame = await client.getActiveGame();
+    console.log("[GameLoop] Active game:", activeGame ? `round=${activeGame.gameRound} status=${activeGame.status} bets=${activeGame.bets?.length}` : "null");
+
+    // Skip rounds already resolved via fallback (still active on-chain but finished in memory)
+    if (activeGame && resolvedRounds.has(activeGame.gameRound)) {
+      console.log(`[GameLoop] Round ${activeGame.gameRound} already resolved. Skipping.`);
+      activeGame = null;
+    }
+
+    console.log("[GameLoop] Fetching config...");
     const gameConfig = await client.getGameConfig();
+    console.log("[GameLoop] Config:", gameConfig ? `round=${gameConfig.gameRound} locked=${gameConfig.lock}` : "null");
 
     if (!gameConfig) {
       console.log("[GameLoop] Config not found");
@@ -175,11 +189,10 @@ async function gameLoopTick() {
       if (remaining === 0) {
         if (endGameScheduled) {
           const stuckMinutes = (now - activeGame.endDate) / 60;
-          if (stuckMinutes > 30) {
-            // Stuck too long — give up, just log once per 10 min
-            if (Math.round(stuckMinutes) % 10 === 0) {
-              console.log(`[GameLoop] Game ${activeGame.gameRound} stuck for ${Math.round(stuckMinutes)}min — secret lost, game unrecoverable. Needs manual intervention.`);
-            }
+          if (stuckMinutes > 5) {
+            // Stuck too long — force fallback resolution
+            console.log(`[GameLoop] Game ${activeGame.gameRound} stuck for ${Math.round(stuckMinutes)}min — forcing fallback resolution`);
+            await executeEndGame(activeGame.gameRound);
           } else if (stuckMinutes > 5) {
             console.log(`[GameLoop] Game ${activeGame.gameRound} stuck for ${Math.round(stuckMinutes)}min — retrying end_game with DB recovery`);
             await executeEndGame(activeGame.gameRound);
